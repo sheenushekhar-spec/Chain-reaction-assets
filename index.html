@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Chain Reaction Reborn</title>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@700&family=Ubuntu:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* MASTER STYLES UNTOUCHED */
+        :root { --bg-deep: #05070a; --reactor-purple: #1a0b2e; --cyan-glow: #00f2ff; --red-glow: #ff0055; --glass: rgba(255, 255, 255, 0.08); --glass-border: rgba(255, 255, 255, 0.15); }
+        @view-transition { navigation: auto; }
+        ::view-transition-old(root) { animation: 350ms cubic-bezier(0.4, 0, 0.2, 1) both slide-to-left; }
+        ::view-transition-new(root) { animation: 350ms cubic-bezier(0.4, 0, 0.2, 1) both slide-from-right; }
+        @keyframes slide-to-left { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+        @keyframes slide-from-right { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; outline: none; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg-deep); font-family: 'Ubuntu', sans-serif; color: white; overflow: hidden; touch-action: manipulation; }
+        #bg-canvas { position: fixed; inset: 0; background: radial-gradient(circle at center, var(--reactor-purple) 0%, var(--bg-deep) 100%); z-index: -1; }
+        .control-stack { position: absolute; top: 20px; right: 20px; display: flex; flex-direction: column; gap: 12px; z-index: 50; }
+        .icon-btn { width: 48px; height: 48px; border-radius: 50%; background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(0, 242, 255, 0.3); backdrop-filter: blur(10px); display: flex; justify-content: center; align-items: center; cursor: pointer; transition: 0.3s; color: var(--cyan-glow); font-size: 1.4rem; }
+        .icon-btn.active { background: var(--cyan-glow); color: #000; border-color: #fff; box-shadow: 0 0 20px var(--cyan-glow); }
+        .container { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100%; padding: 20px; }
+        .logo-area { text-align: center; margin-bottom: 40px; }
+        .nucleus-icon { view-transition-name: main-logo; width: 70px; height: 70px; margin: 0 auto 15px; border: 3px solid var(--cyan-glow); border-radius: 50%; display: flex; justify-content: center; align-items: center; box-shadow: 0 0 25px var(--cyan-glow); animation: nucleus-pulse 2s infinite ease-in-out; }
+        .nucleus-inner { width: 24px; height: 24px; background: white; border-radius: 50%; }
+        @keyframes nucleus-pulse { 0%, 100% { transform: scale(1); opacity: 0.8; } 50% { transform: scale(1.05); opacity: 1; } }
+        h1 { font-family: 'Roboto Condensed', sans-serif; font-size: 2.8rem; margin: 0; text-transform: uppercase; letter-spacing: -1px; line-height: 0.9; }
+        .reborn { color: var(--cyan-glow); font-size: 3.4rem; }
+
+        /* Nickname Box Integration */
+        .setup-box { background: var(--glass); backdrop-filter: blur(20px); padding: 30px; border-radius: 32px; border: 1px solid var(--glass-border); text-align: center; width: 90%; max-width: 350px; margin-top: 20px; z-index: 100; }
+        .input-field { padding: 15px; width: 100%; border-radius: 12px; border: 1px solid rgba(0, 242, 255, 0.4); background: rgba(0,0,0,0.3); color: var(--cyan-glow); text-align: center; font-size: 1rem; font-weight: bold; margin-bottom: 15px; box-sizing: border-box; }
+
+        .menu-nav { width: 100%; max-width: 290px; display: flex; flex-direction: column; gap: 18px; display: none; }
+        .main-btn { position: relative; padding: 20px; border-radius: 20px; border: none; font-family: 'Roboto Condensed', sans-serif; cursor: pointer; transition: 0.2s; display: flex; flex-direction: column; align-items: center; width: 100%; }
+        .offline-btn { background: rgba(255, 255, 255, 0.03); color: var(--cyan-glow); border: 1px solid rgba(0, 242, 255, 0.4); box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        .online-btn { background: var(--cyan-glow); color: #000; box-shadow: 0 0 25px rgba(0, 242, 255, 0.4); font-weight: bold; }
+        .online-btn.locked { opacity: 0.2; filter: grayscale(1); pointer-events: none; background: #222; color: #555; }
+        .sub-btn { background: none; border: none; color: #555; padding: 10px; font-size: 0.75rem; text-transform: uppercase; cursor: pointer; margin-top: 10px; }
+        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.92); display: none; justify-content: center; align-items: center; z-index: 200; backdrop-filter: blur(25px); }
+        .modal-content { width: 90%; max-width: 380px; background: var(--glass); border: 1px solid var(--glass-border); border-radius: 35px; padding: 30px; text-align: center; }
+        .panel { display: none; animation: fadeIn 0.3s ease-out; }
+        .panel.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .mini-board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; width: 180px; margin: 20px auto; background: rgba(0,0,0,0.4); padding: 10px; border-radius: 15px; border: 1px solid rgba(0,242,255,0.2); }
+        .cell { aspect-ratio: 1; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; display: flex; justify-content: center; align-items: center; position: relative; }
+        .orb { width: 22px; height: 22px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, var(--cyan-glow), #007799); box-shadow: 0 0 12px var(--cyan-glow); }
+        .critical .orb { animation: pulse 0.6s infinite alternate, jitter 0.1s infinite; background: radial-gradient(circle at 30% 30%, #fff, var(--red-glow)); }
+        @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.15); } }
+        @keyframes jitter { 0%, 100% { transform: translate(0,0); } 50% { transform: translate(1px, -1px); } }
+        .travel-orb { position: absolute; width: 12px; height: 12px; border-radius: 50%; background: var(--cyan-glow); animation-duration: 1.2s; animation-iteration-count: infinite; }
+        @keyframes travel-up { 0% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(-45px); opacity: 0; } }
+        @keyframes travel-down { 0% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(45px); opacity: 0; } }
+        @keyframes travel-left { 0% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(-45px); opacity: 0; } }
+        @keyframes travel-right { 0% { transform: translateX(0); opacity: 1; } 100% { transform: translateX(45px); opacity: 0; } }
+        .is-converting { animation: takeover 2s infinite; }
+        @keyframes takeover { 0%, 40% { background: var(--red-glow); transform: scale(1); } 50% { background: white; transform: scale(1.3); } 60%, 100% { background: var(--cyan-glow); transform: scale(1); } }
+        .dots { margin: 15px 0; }
+        .dot { height: 6px; width: 6px; background: #333; display: inline-block; border-radius: 50%; margin: 0 4px; transition: 0.3s; }
+        .dot.active { background: var(--cyan-glow); transform: scale(1.4); }
+        .slider-group { margin-bottom: 25px; text-align: left; }
+        input[type="range"] { width: 100%; -webkit-appearance: none; background: rgba(0, 242, 255, 0.1); height: 8px; border-radius: 10px; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 24px; height: 24px; background: #fff; border: 3px solid var(--cyan-glow); border-radius: 50%; }
+        .news-modal { border-color: var(--cobalt-glow); }
+    </style>
+</head>
+<body>
+    <div id="bg-canvas"></div>
+    <div class="control-stack">
+        <div id="playBtn" class="icon-btn" onclick="toggleConnect()">🎮</div>
+        <div id="newsBtn" class="icon-btn" style="display:none;" onclick="toggleNews(true)">📡</div>
+        <div class="icon-btn" onclick="toggleSettings(true)">⚙️</div>
+    </div>
+    <div class="container">
+        <div class="logo-area">
+            <div class="nucleus-icon"><div class="nucleus-inner"></div></div>
+            <h1>CHAIN<br><span class="reborn">REBORN</span></h1>
+        </div>
+
+        <div id="nickname-entry" class="setup-box">
+            <h2 style="color: var(--cyan-glow); margin-top:0;">IDENTIFY CORE</h2>
+            <input type="text" id="userNickname" placeholder="ENTER NICKNAME" class="input-field" maxlength="12">
+            <button onclick="saveIdentity()" class="main-btn online-btn">ESTABLISH LINK</button>
+        </div>
+
+        <div id="mode-select" class="menu-nav">
+            <button class="main-btn offline-btn" onclick="location.href='offline.html'">
+                <span style="font-size: 1.3rem; font-weight: 700;">LOCAL FISSION</span>
+                <span style="font-size: 0.75rem; opacity: 0.8; margin-top: 4px;">OFFLINE BATTLE</span>
+            </button>
+            <button id="outbreakBtn" class="main-btn online-btn locked" onclick="location.href='online.html'">
+                <span style="font-size: 1.3rem; font-weight: 700;">GLOBAL OUTBREAK</span>
+                <span style="font-size: 0.75rem; opacity: 0.8; margin-top: 4px;">ONLINE SYNC</span>
+            </button>
+            <button class="sub-btn" onclick="toggleTutorial(true)">How to Play</button>
+        </div>
+    </div>
+
+    <div id="settings-modal" class="modal">
+        <div class="modal-content">
+            <h2 style="margin: 0 0 25px; font-family: 'Roboto Condensed', sans-serif; letter-spacing: 2px;">REACTOR CONFIG</h2>
+            <div class="slider-group">
+                <div style="display:flex; justify-content:space-between; font-size:0.8rem; margin-bottom:8px; color:var(--cyan-glow);"><span>Ambience</span><span id="musicVal">80%</span></div>
+                <input type="range" id="musicSlider" min="0" max="100" value="80" oninput="updateVolume('music', this.value)">
+            </div>
+            <div class="slider-group">
+                <div style="display:flex; justify-content:space-between; font-size:0.8rem; margin-bottom:8px; color:var(--cyan-glow);"><span>Effects</span><span id="sfxVal">100%</span></div>
+                <input type="range" id="sfxSlider" min="0" max="100" value="100" oninput="updateVolume('sfx', this.value)">
+            </div>
+            <button class="main-btn online-btn" style="width:100%;" onclick="toggleSettings(false)">SAVE & EXIT</button>
+        </div>
+    </div>
+
+    <div id="tutorial-modal" class="modal">
+        <div class="modal-content">
+            <div class="panel active">
+                <h2 style="color: var(--cyan-glow); margin-top: 0;">The Tap</h2>
+                <div class="mini-board"><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"><div class="orb"></div></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div></div>
+                <p style="font-size: 0.9rem; color: #aaa;">Tap a cell to place an atom. Dominate the reactor grid.</p>
+            </div>
+            <div class="panel"><h2 style="color: var(--cyan-glow); margin-top: 0;">Critical Mass</h2><div class="mini-board"><div class="cell"><div class="orb"></div><span style="font-size:10px; color:var(--cyan-glow); position:absolute; bottom:2px;">1/2</span></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell critical"><div class="orb"></div><span style="font-size:10px; color:var(--cyan-glow); position:absolute; bottom:2px;">3/4</span></div><div class="cell"></div><div class="cell"></div><div class="cell"><div class="orb"></div><span style="font-size:10px; color:var(--cyan-glow); position:absolute; bottom:2px;">2/3</span></div><div class="cell"></div></div><p style="font-size: 0.9rem; color: #aaa;">Orbs dance at critical mass. Corners (2), Edges (3), Center (4).</p></div>
+            <div class="panel"><h2 style="color: var(--cyan-glow); margin-top: 0;">Explosion</h2><div class="mini-board"><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"><div class="travel-orb" style="animation-name: travel-up"></div><div class="travel-orb" style="animation-name: travel-down"></div><div class="travel-orb" style="animation-name: travel-left"></div><div class="travel-orb" style="animation-name: travel-right"></div></div><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"></div></div><p style="font-size: 0.9rem; color: #aaa;">At max capacity, atoms split and move to all neighbors.</p></div>
+            <div class="panel"><h2 style="color: var(--cyan-glow); margin-top: 0;">Takeover</h2><div class="mini-board"><div class="cell"></div><div class="cell"></div><div class="cell"></div><div class="cell"><div class="orb"></div></div><div class="cell"><div class="travel-orb" style="animation-name: travel-right; animation-delay:0.5s;"></div></div><div class="cell"><div class="orb is-converting"></div></div><div class="cell"></div><div class="cell"></div><div class="cell"></div></div><p style="font-size: 0.9rem; color: #aaa;">Hitting an enemy cell <b>converts</b> their color to yours!</p></div>
+            <div class="panel"><h2 style="color: var(--cyan-glow); margin-top: 0;">Victory</h2><div style="font-size: 50px; margin: 15px 0;">☢️</div><p style="font-size: 0.9rem; color: #aaa;">Clear the board. Master the nucleus. Have fun!</p></div>
+            <div class="dots"><span class="dot active"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+            <div style="display:flex; justify-content:space-between; margin-top:20px;">
+                <button class="main-btn offline-btn" id="prevBtn" onclick="moveTutorial(-1)" style="padding:10px 25px; visibility:hidden;">BACK</button>
+                <button class="main-btn online-btn" id="nextBtn" onclick="moveTutorial(1)" style="padding:10px 25px;">NEXT</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="news-modal" class="modal">
+        <div class="modal-content news-modal">
+            <h2 style="color:var(--cobalt-glow); margin:0;">REACTOR BULLETIN</h2>
+            <div id="news-body" style="margin: 20px 0; color: #aaa; text-align: left; line-height: 1.5;"></div>
+            <button class="main-btn offline-btn" style="width:100%" onclick="toggleNews(false)">DISMISS</button>
+        </div>
+    </div>
+
+    <script>
+        const fbConfig = { apiKey: "AIzaSyD6U5J3oeXC0gAI1pvz_Q9uKKR3mr9UbSE", authDomain: "chain-reaction-premium.firebaseapp.com", databaseURL: "https://chain-reaction-premium-default-rtdb.asia-southeast1.firebasedatabase.app", projectId: "chain-reaction-premium", storageBucket: "chain-reaction-premium.firebasestorage.app", messagingSenderId: "803586175248", appId: "1:803586175248:web:f47ea5498f91be964b3595" };
+        firebase.initializeApp(fbConfig); const db = firebase.database();
+
+        let isConnected = false; let maintenance = false; let menuAudio = null;
+
+        function saveIdentity() {
+            const nick = document.getElementById('userNickname').value.trim() || "User_" + Math.floor(Math.random()*999);
+            sessionStorage.setItem('playerNickname', nick);
+            showMenu();
+        }
+
+        function showMenu() {
+            document.getElementById('nickname-entry').style.display = 'none';
+            document.getElementById('mode-select').style.display = 'flex';
+        }
+
+        // Overseer Sync
+        db.ref('admin_config').on('value', s => {
+            const d = s.val(); if(!d) return;
+            maintenance = d.maintenance_mode || false;
+            const btn = document.getElementById('outbreakBtn');
+            btn.classList.toggle('locked', maintenance);
+            btn.innerHTML = maintenance ? "<span>MAINTENANCE</span>" : "<span style='font-size: 1.3rem; font-weight: 700;'>GLOBAL OUTBREAK</span><span style='font-size: 0.75rem; opacity: 0.8; margin-top: 4px;'>ONLINE SYNC</span>";
+
+            if(d.global_news) { document.getElementById('news-body').innerText = d.global_news; document.getElementById('newsBtn').style.display = 'flex'; }
+            
+            if(d.audio_library && d.audio_library.menu && d.audio_library.menu !== 'default') {
+                if(!menuAudio || menuAudio.src !== d.audio_library.menu) {
+                    if(menuAudio) menuAudio.pause();
+                    menuAudio = new Audio(d.audio_library.menu); menuAudio.loop = true;
+                    document.addEventListener('click', () => { menuAudio.play().catch(()=>{}); }, { once: true });
+                }
+            }
+        });
+
+        function toggleConnect() { isConnected = !isConnected; document.getElementById('playBtn').classList.toggle('active', isConnected); document.getElementById('outbreakBtn').classList.toggle('locked', !isConnected || maintenance); }
+        function toggleSettings(show) { document.getElementById('settings-modal').style.display = show ? 'flex' : 'none'; }
+        function updateVolume(type, val) { document.getElementById(type + 'Val').innerText = val + '%'; localStorage.setItem('vol_' + type, val / 100); }
+        let tutIdx = 0;
+        function toggleTutorial(show) { document.getElementById('tutorial-modal').style.display = show ? 'flex' : 'none'; tutIdx = 0; updateTutUI(); }
+        function moveTutorial(step) { const panels = document.querySelectorAll('.panel'); if(tutIdx + step < 0) return; if(tutIdx + step >= panels.length) { toggleTutorial(false); return; } tutIdx += step; updateTutUI(); }
+        function updateTutUI() { const panels = document.querySelectorAll('.panel'); const dots = document.querySelectorAll('.dot'); panels.forEach((p, i) => p.classList.toggle('active', i === tutIdx)); dots.forEach((d, i) => d.classList.toggle('active', i === tutIdx)); document.getElementById('prevBtn').style.visibility = tutIdx === 0 ? "hidden" : "visible"; document.getElementById('nextBtn').innerText = tutIdx === panels.length - 1 ? "FINISH" : "NEXT"; }
+        function toggleNews(show) { document.getElementById('news-modal').style.display = show ? 'flex' : 'none'; }
+
+        window.onload = () => { 
+            const savedNick = sessionStorage.getItem('playerNickname');
+            if(savedNick) showMenu();
+            const savedMusic = localStorage.getItem('vol_music') || 0.8; const savedSFX = localStorage.getItem('vol_sfx') || 1.0;
+            document.getElementById('musicSlider').value = savedMusic * 100; document.getElementById('musicVal').innerText = Math.round(savedMusic * 100) + '%';
+            document.getElementById('sfxSlider').value = savedSFX * 100; document.getElementById('sfxVal').innerText = Math.round(savedSFX * 100) + '%';
+        };
+    </script>
+</body>
+</html>

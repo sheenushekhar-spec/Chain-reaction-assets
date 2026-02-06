@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Chain Reaction Reborn - Online</title>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@700&family=Ubuntu:wght@400;700&family=Roboto+Mono&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg: #05070a; --reactor: #1a0b2e; --cyan-glow: #00f2ff; --glass: rgba(255, 255, 255, 0.08); --glass-border: rgba(255, 255, 255, 0.15); --red-alert: #ff0055; }
+        @view-transition { navigation: auto; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+        body { background: radial-gradient(circle at center, var(--reactor) 0%, var(--bg) 100%); color: white; font-family: 'Ubuntu', sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; height: 100vh; overflow: hidden; }
+        
+        /* Tactical Card Styling */
+        .setup-box { background: var(--glass); backdrop-filter: blur(20px); padding: 25px; border-radius: 32px; border: 1px solid var(--glass-border); text-align: center; width: 90%; max-width: 400px; margin-top: 20px; box-shadow: 0 0 30px rgba(0,0,0,0.5); }
+        .room-card { width: 100%; background: rgba(0,0,0,0.4); border: 1px solid rgba(0, 242, 255, 0.2); border-radius: 16px; padding: 15px; margin-bottom: 12px; cursor: pointer; transition: 0.3s; text-align: left; position: relative; overflow: hidden; }
+        .room-card:hover { border-color: var(--cyan-glow); background: rgba(0, 242, 255, 0.05); }
+        .room-id { font-family: 'Roboto Mono', monospace; color: var(--cyan-glow); font-size: 0.9rem; letter-spacing: 1px; }
+        .stability-track { width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin: 10px 0; overflow: hidden; }
+        .stability-fill { height: 100%; background: var(--cyan-glow); box-shadow: 0 0 10px var(--cyan-glow); transition: 0.5s; }
+        .join-prompt { font-family: 'Roboto Condensed', sans-serif; font-size: 0.7rem; color: #555; letter-spacing: 1px; }
+
+        /* Premium Buttons */
+        .action-btn { width: 100%; padding: 18px; border-radius: 20px; background: var(--cyan-glow); color: black; border: none; font-weight: bold; font-family: 'Roboto Condensed', sans-serif; text-transform: uppercase; cursor: pointer; transition: 0.2s; letter-spacing: 1px; }
+        .sec-btn { background: rgba(255, 255, 255, 0.03); color: var(--cyan-glow); border: 1px solid rgba(0, 242, 255, 0.4); margin-top: 10px; }
+        .purge-btn { background: rgba(255, 0, 85, 0.05); color: var(--red-alert); border: 1px solid var(--red-alert); margin-top: 20px; font-family: 'Roboto Mono', monospace; font-size: 0.75rem; text-shadow: 0 0 10px var(--red-alert); }
+        
+        /* Grid & Components */
+        .grid { display: grid; grid-template-columns: repeat(6, 50px); grid-template-rows: repeat(9, 50px); gap: 5px; background: rgba(0,0,0,0.5); padding: 12px; border-radius: 20px; border: 3px solid var(--glass-border); transition: 0.4s; }
+        .cell { width: 50px; height: 50px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; position: relative; }
+        #purge-overlay { display: none; position: fixed; inset: 0; background: rgba(10, 0, 0, 0.85); z-index: 2000; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(15px); text-align: center; }
+        .player-row { display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); padding: 12px; border-radius: 12px; margin-bottom: 8px; font-family: 'Roboto Mono', monospace; font-size: 0.85rem; }
+    </style>
+</head>
+<body>
+    <div id="win-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.95); z-index:1000; flex-direction:column; align-items:center; justify-content:center; backdrop-filter:blur(10px);">
+        <h1 id="winner-text" style="font-family:'Roboto Condensed';">WINS!</h1>
+        <button onclick="location.reload()" class="action-btn" style="width:auto; padding:15px 40px;">NEW BATTLE</button>
+    </div>
+
+    <div id="purge-overlay">
+        <h2 style="color: var(--red-alert); font-family: 'Roboto Condensed'; letter-spacing: 2px;">CRITICAL ERROR</h2>
+        <p id="purge-msg" style="font-family:'Roboto Mono'; font-size:0.8rem; color:#888; margin-bottom:25px;">HOST_NUCLEUS_DISCONNECTED</p>
+        <div id="purge-controls" style="width:100%; max-width:300px;"></div>
+    </div>
+
+    <div id="nickname-entry" class="setup-box">
+        <h2 style="color: var(--cyan-glow); font-family:'Roboto Condensed';">IDENTIFY YOUR CORE</h2>
+        <input type="text" id="userNickname" placeholder="ENTER NICKNAME" class="input-field" maxlength="12">
+        <button onclick="saveIdentity()" class="action-btn">ESTABLISH LINK</button>
+    </div>
+
+    <div id="mode-select" class="setup-box" style="display:none;">
+        <h2 style="color: var(--cyan-glow); font-family:'Roboto Condensed';">GLOBAL OUTBREAK</h2>
+        <button onclick="showPublicLobbies()" class="action-btn">PUBLIC BATTLES</button>
+        <button onclick="createRoom(false)" class="action-btn sec-btn">HOST PRIVATE</button>
+        <input type="text" id="joinCode" placeholder="PRIVATE CODE" class="input-field" style="margin-top:15px; font-size:0.8rem;" maxlength="4">
+        <button onclick="joinByCode()" class="action-btn sec-btn" style="margin-top:0;">JOIN SESSION</button>
+    </div>
+
+    <div id="public-browser" class="setup-box" style="display:none;">
+        <h2 style="color:var(--cyan-glow); font-family:'Roboto Condensed';">ACTIVE NUCLEI SCANNER</h2>
+        <div id="room-list" style="max-height: 250px; overflow-y: auto; margin-bottom: 15px; padding-right:5px;"></div>
+        <button onclick="createRoom(true)" class="action-btn">CREATE PUBLIC</button>
+        <button onclick="location.reload()" class="action-btn sec-btn">BACK</button>
+    </div>
+
+    <div id="lobby" class="setup-box" style="display:none;">
+        <h2 style="font-family:'Roboto Mono'; font-size:1rem; color:var(--cyan-glow);">REACTOR: <span id="displayRoom">----</span></h2>
+        <div id="color-picker" class="color-grid"></div>
+        <div id="memberList" style="margin: 20px 0;"></div>
+        <div id="hostControls" style="display:none;">
+            <button onclick="startOnlineGame()" class="action-btn">INITIATE OUTBREAK</button>
+        </div>
+        <button onclick="leaveRoom()" class="action-btn purge-btn">[!] PURGE_SESSION_LINK</button>
+    </div>
+
+    <div id="game-container" style="display:none; flex-direction:column; align-items:center; width:100%; height:100%; justify-content:center;">
+        <div id="turn-indicator" style="padding:12px 40px; border-radius:50px; font-weight:bold; text-transform:uppercase; font-family:'Roboto Condensed'; min-width:250px; text-align:center;"><span id="turn-text">Establishing...</span></div>
+        <div class="timer-container" style="width:200px; height:4px; background:rgba(255,255,255,0.1); border-radius:10px; margin:15px 0 25px; overflow:hidden;"><div id="neon-fuse" style="height:100%; width:100%; background:var(--p-color, var(--cyan-glow)); transform:scaleX(0); transition:0.1s linear;"></div></div>
+        <div id="grid" class="grid"></div>
+        <button onclick="leaveRoom()" class="action-btn purge-btn" style="width:200px;">[!] PURGE_LINK</button>
+    </div>
+
+    <script>
+        const config = { apiKey: "AIzaSyD6U5J3oeXC0gAI1pvz_Q9uKKR3mr9UbSE", authDomain: "chain-reaction-premium.firebaseapp.com", databaseURL: "https://chain-reaction-premium-default-rtdb.asia-southeast1.firebasedatabase.app", projectId: "chain-reaction-premium", storageBucket: "chain-reaction-premium.firebasestorage.app", messagingSenderId: "803586175248", appId: "1:803586175248:web:f47ea5498f91be964b3595" };
+        firebase.initializeApp(config); const db = firebase.database();
+        
+        let nickname = "", players = [], turnIdx = 0, board = [], isAnimating = false, myId = null, roomRef = null, timerInt = null, movesMade = 0;
+        let globalMoveId = 0, isGameOver = false, knownPlayerCount = 0, globalTurnTimer = 20;
+
+        function updateTelemetry(change) { if(change !== 0) db.ref('global_stats/active_players').transaction(c => (c || 0) + change); }
+
+        function saveIdentity() { nickname = document.getElementById('userNickname').value.trim() || "User_" + Math.floor(Math.random()*999); sessionStorage.setItem('playerNickname', nickname); showMenu(); }
+        function showMenu() { document.getElementById('nickname-entry').style.display = 'none'; document.getElementById('mode-select').style.display = 'block'; }
+        
+        function showPublicLobbies() {
+            document.getElementById('mode-select').style.display = 'none'; document.getElementById('public-browser').style.display = 'block';
+            db.ref('listings').on('value', s => {
+                let h = ''; const data = s.val();
+                if(data) {
+                    Object.keys(data).forEach(code => {
+                        const count = data[code].count;
+                        const percent = (count / 8) * 100;
+                        h += `<div class="room-card" onclick="joinByCode('${code}')">
+                                <div class="room-id">REACTOR_${code}</div>
+                                <div class="stability-track"><div class="stability-fill" style="width:${percent}%"></div></div>
+                                <div class="join-prompt">>> INITIATE_CONNECTION_? (${count}/8)</div>
+                              </div>`;
+                    });
+                }
+                document.getElementById('room-list').innerHTML = h || '<p style="color:#444; font-family:Roboto Mono; font-size:0.7rem;">SCANNING... NO ACTIVE NUCLEI</p>';
+            });
+        }
+
+        async function createRoom(isPublic) {
+            const code = Math.random().toString(36).substring(2, 6).toUpperCase();
+            roomRef = db.ref('rooms/' + code); myId = 0;
+            players = [{id:0, color:colors[0], name:nickname, isBot:false, active:true}];
+            await roomRef.set({ players, state: 'lobby', host: 0, mId: 0, isPublic, timerStart: 0, turnIdx: 0 });
+            db.ref('global_stats/active_rooms').transaction(c => (c || 0) + 1);
+            updateTelemetry(1);
+            if(isPublic) db.ref('listings/' + code).set({ count: 1 });
+            enterLobby(code);
+        }
+
+        async function joinByCode(manual) {
+            const code = (manual || document.getElementById('joinCode').value).toUpperCase();
+            roomRef = db.ref('rooms/' + code); const s = await roomRef.once('value');
+            if(!s.exists() || s.val().state !== 'lobby') return alert("REACTOR UNAVAILABLE");
+            myId = s.val().players.length; players = s.val().players;
+            players.push({id:myId, color:colors[myId] || colors[0], name:nickname, isBot:false, active:true});
+            await roomRef.child('players').set(players);
+            updateTelemetry(1);
+            if(s.val().isPublic) db.ref('listings/' + code).update({ count: players.length });
+            enterLobby(code);
+        }
+
+        async function leaveRoom() {
+            if (!roomRef) return;
+            const code = document.getElementById('displayRoom').innerText;
+            if (myId === 0) {
+                // MASTER SWEEPER: Clean all telemetry for this room
+                db.ref('listings/' + code).remove();
+                db.ref('global_stats/active_rooms').transaction(c => Math.max(0, (c || 1) - 1));
+                db.ref('global_stats/active_players').transaction(c => Math.max(0, (c || 0) - players.length));
+                await roomRef.remove();
+            } else {
+                updateTelemetry(-1);
+                await roomRef.child('players/' + myId).remove();
+                db.ref('listings/' + code).update({ count: players.length - 1 });
+            }
+            location.reload();
+        }
+
+        function enterLobby(code) {
+            document.querySelectorAll('.setup-box').forEach(b => b.style.display = 'none');
+            document.getElementById('lobby').style.display = 'block';
+            document.getElementById('displayRoom').innerText = code;
+            roomRef.on('value', s => {
+                let d = s.val(); 
+                if(!d) {
+                    // REDIRECT: Host paid the debt, guest just leaves
+                    document.getElementById('lobby').style.display = 'none';
+                    document.getElementById('game-container').style.display = 'none';
+                    document.getElementById('purge-overlay').style.display = 'flex';
+                    document.getElementById('purge-msg').innerText = "HOST_NUCLEUS_DISCONNECTED";
+                    document.getElementById('purge-controls').innerHTML = `<button onclick="location.reload()" class="action-btn">RETURN TO TERMINAL</button>`;
+                    return;
+                }
+                const stillInRoom = d.players.find(p => p.id === myId);
+                if(!stillInRoom) {
+                    document.getElementById('purge-overlay').style.display = 'flex';
+                    document.getElementById('purge-msg').innerText = "CONNECTION_TERMINATED_BY_HOST";
+                    document.getElementById('purge-controls').innerHTML = `<button onclick="location.reload()" class="action-btn">RETURN TO TERMINAL</button>`;
+                    return;
+                }
+                players = d.players; globalMoveId = d.mId || 0; turnIdx = d.turnIdx || 0;
+                let cp = ''; colors.forEach(c => { const isMine = players[myId].color === c; const isTaken = players.map(p=>p.color).includes(c) && !isMine; cp += `<div class="color-opt ${isMine?'selected':''} ${isTaken?'taken':''}" style="background:${c}; color:${c}" onclick="selectColor('${c}')"></div>`; });
+                document.getElementById('color-picker').innerHTML = cp;
+                let h = ''; players.forEach(p => h += `<div class="player-row" style="border-left:4px solid ${p.color}"><span>${p.name.toUpperCase()}</span>${d.host === myId && p.id !== myId ? `<button class="kick-btn" onclick="kickPlayer(${p.id})">KICK</button>` : ''}</div>`);
+                document.getElementById('memberList').innerHTML = h;
+                if(d.host === myId) document.getElementById('hostControls').style.display = 'block';
+                if(d.state === 'play' && !board.length) launchBoard();
+                if(d.state === 'winner') handleVictory(d.winner);
+                if(d.lastMove && d.lastMove.mId === globalMoveId && !isAnimating) executeMove(d.lastMove.r, d.lastMove.c);
+            });
+        }
+
+        function kickPlayer(pId) { 
+            const newPlayers = players.filter(p => p.id !== pId).map((p, idx) => ({...p, id: idx})); 
+            roomRef.update({ players: newPlayers });
+            db.ref('listings/' + document.getElementById('displayRoom').innerText).update({ count: newPlayers.length });
+        }
+
+        function selectColor(c) { players[myId].color = c; roomRef.child('players').set(players); }
+
+        function launchBoard() {
+            document.getElementById('lobby').style.display = 'none'; document.getElementById('game-container').style.display = 'flex';
+            const g = document.getElementById('grid'); g.innerHTML = ''; 
+            for(let r=0; r<9; r++) { board[r] = []; for(let c=0; c<6; c++) { board[r][c] = {p: -1, count: 0}; let d = document.createElement('div'); d.className = 'cell'; d.onclick = () => { if(turnIdx === myId && !isAnimating) sendMove(r,c); }; d.id = `c${r}-${c}`; g.appendChild(d); } }
+        }
+
+        function sendMove(r, c) { if(board[r][c].p !== -1 && board[r][c].p !== players[turnIdx].id) return; roomRef.child('lastMove').set({r, c, p: turnIdx, mId: globalMoveId}); }
+
+        async function executeMove(r, c) {
+            isAnimating = true; await add(r, c, players[turnIdx].id);
+            movesMade++;
+            players.forEach(p => {
+                let count = 0;
+                for(let row=0; row<9; row++) for(let col=0; col<6; col++) if(board[row][col].p === p.id) count++;
+                if(count === 0 && movesMade >= players.length) p.active = false;
+            });
+            let alive = players.filter(p => p.active);
+            if(alive.length === 1 && movesMade >= players.length) {
+                if(myId === 0) roomRef.update({ state: 'winner', winner: alive[0] });
+                isAnimating = false; return;
+            }
+            let next = (turnIdx + 1) % players.length;
+            while(!players[next].active) next = (next+1)%players.length;
+            if(myId === 0) roomRef.update({ mId: globalMoveId + 1, turnIdx: next, timerStart: Date.now() });
+            isAnimating = false;
+        }
+
+        function handleVictory(winner) { isGameOver = true; document.getElementById('win-overlay').style.display = 'flex'; document.getElementById('winner-text').innerText = winner.name.toUpperCase() + " WINS!"; document.getElementById('winner-text').style.color = winner.color; }
+
+        async function add(r, c, pId) {
+            let cl = board[r][c], lm = ((r==0||r==8)&&(c==0||c==5))?2:(r==0||r==8||c==0||c==5)?3:4;
+            cl.p = pId; cl.count++;
+            if(cl.count >= lm) { 
+                cl.count = 0; cl.p = -1; render(r, c); 
+                let ns = [[r-1,c],[r+1,c],[r,c-1],[r,c+1]].filter(([nr,nc])=>nr>=0&&nr<9&&nc>=0&&nc<6); await Promise.all(ns.map(([nr,nc]) => fly(r, c, nr, nc, pId))); 
+            } else render(r, c);
+        }
+
+        function fly(r, c, nr, nc, pId) { return new Promise(res => { let s = document.getElementById(`c${r}-${c}`).getBoundingClientRect(), e = document.getElementById(`c${nr}-${nc}`).getBoundingClientRect(); let o = document.createElement('div'); o.style.cssText = `width:18px; height:18px; border-radius:50%; position:fixed; background:\${players[pId].color}; left:\${s.left+16}px; top:\${s.top+16}px; box-shadow:0 0 10px \${players[pId].color}; z-index:500; pointer-events:none;`; document.body.appendChild(o); setTimeout(()=> { o.style.left = e.left+16+'px'; o.style.top = e.top+16+'px'; o.style.transition = '0.3s'; }, 10); setTimeout(async ()=> { o.remove(); if(!isGameOver) await add(nr, nc, pId); res(); }, 310); }); }
+
+        function render(r, c) {
+            let d = document.getElementById(`c${r}-${c}`), cl = board[r][c]; d.innerHTML = '';
+            if(cl.p === -1) return;
+            for(let i=0; i<cl.count; i++) { let o = document.createElement('div'); o.style.cssText = `width:18px; height:18px; border-radius:50%; position:absolute; background:\${players[cl.p].color}; box-shadow:0 0 10px \${players[cl.p].color};`; d.appendChild(o); }
+        }
+
+        const colors = ['#00f2ff', '#ff0055', '#4dff4d', '#ffff4d', '#ff4dff', '#ffa500', '#ffffff', '#4d94ff'];
+        function startOnlineGame() { roomRef.update({ state: 'play', turnIdx: 0, timerStart: Date.now() }); db.ref('listings/' + document.getElementById('displayRoom').innerText).remove(); }
+        window.onload = () => { const saved = sessionStorage.getItem('playerNickname'); if(saved) { nickname = saved; showMenu(); } };
+    </script>
+</body>
+</html>
