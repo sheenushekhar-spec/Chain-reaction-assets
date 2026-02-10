@@ -219,13 +219,13 @@ select, input[type="color"] {
         }
 
         function playSFX(type) {
-            // 1. Force-grab the exact decimal from the index.html suitcase
+            // 1. Instant Synchronous Volume Grab
             const sfxVal = localStorage.getItem('vol_sfx');
-            const liveSfxVol = sfxVal !== null ? parseFloat(sfxVal) : 1.0;
+            const targetVol = sfxVal !== null ? parseFloat(sfxVal) : 1.0;
 
-            // 2. CREATE SHELL IMMEDIATELY: This silences the hardware before the URL loads
+            // 2. THE SILENCER: Create the object BEFORE the database delay
             const soundInstance = new Audio();
-            soundInstance.volume = liveSfxVol; 
+            soundInstance.volume = targetVol; 
 
             db.ref(`admin_config/audio_library/${type}`).once('value', s => {
                 const val = s.val();
@@ -233,9 +233,9 @@ select, input[type="color"] {
                 const url = (val === 'default' || !val) ? localMap[type] : val;
 
                 if(url) {
-                    // 3. Attach the file to the already-silenced shell
+                    // 3. Hardware is already throttled when the URL attaches
                     soundInstance.src = url;
-                    soundInstance.play().catch(e => console.log("SFX Blocked:", e));
+                    soundInstance.play().catch(e => {});
                 }
             });
         }
