@@ -123,11 +123,23 @@ select, input[type="color"] {
                     // This checks if it should use the APK folder for the background hum
                     const humSrc = (data.audio_library.board === 'default') ? 'assets/audio/board_hum.mp3' : data.audio_library.board;
                     if (humSrc) {
-                        audioLibrary.board = new Audio(humSrc);
-                        audioLibrary.board.loop = true;
-                        audioLibrary.board.volume = musicVol;
-                        // Picks up the beat exactly where the Index left off
-                        audioLibrary.board.currentTime = startTimestamp;
+                        const boardAudio = new Audio(humSrc);
+                        boardAudio.loop = true;
+                        boardAudio.volume = musicVol;
+                        
+                        // We store it in the library first
+                        audioLibrary.board = boardAudio;
+
+                        // The browser needs a "Gesture" to allow the jump
+                        const resumeHandoff = () => {
+                            // Set the time ONLY when we are about to play
+                            boardAudio.currentTime = startTimestamp; 
+                            boardAudio.play().catch(e => console.log("Handoff blocked:", e));
+                            document.removeEventListener('pointerdown', resumeHandoff);
+                        };
+                        
+                        // Listen for your first tap on the "Engage Fission" screen
+                        document.addEventListener('pointerdown', resumeHandoff);
                     }
                 }
             }
