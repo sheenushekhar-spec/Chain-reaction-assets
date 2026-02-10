@@ -8,9 +8,10 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@700&family=Ubuntu:wght@400;700&display=swap" rel="stylesheet">
     <style>
+        /* STANDARDIZED REACTOR VARIABLES */
         :root { 
-            --bg: #05070a; --reactor: #1a0b2e; --cyan-glow: #00f2ff; --glass: rgba(255, 255, 255, 0.08); --glass-border: rgba(255, 255, 255, 0.15); 
-            --cell-size: 50px; /* Remote Controlled via Console */
+            --bg-deep: #05070a; --reactor-purple: #1a0b2e; --cyan-glow: #00f2ff; --glass: rgba(255, 255, 255, 0.08); --glass-border: rgba(255, 255, 255, 0.15); 
+            --cell-size: 50px; 
         }
         @view-transition { navigation: auto; }
         ::view-transition-old(root) { animation: 350ms cubic-bezier(0.4, 0, 0.2, 1) both slide-to-left; }
@@ -18,19 +19,33 @@
         @keyframes slide-to-left { from { transform: translateX(0); } to { transform: translateX(-100%); } }
         @keyframes slide-from-right { from { transform: translateX(100%); } to { transform: translateX(0); } }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
-        body { background: radial-gradient(circle at center, var(--reactor) 0%, var(--bg) 100%); color: white; font-family: 'Ubuntu', sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; height: 100vh; overflow: hidden; }
+        body { background: radial-gradient(circle at center, var(--reactor-purple) 0%, var(--bg-deep) 100%); color: white; font-family: 'Ubuntu', sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; height: 100vh; overflow: hidden; }
         
         #setup { background: var(--glass); backdrop-filter: blur(20px); padding: 25px; border-radius: 32px; border: 1px solid var(--glass-border); text-align: center; width: 90%; max-width: 400px; margin-top: 40px; }
         .setup-header { font-family: 'Roboto Condensed', sans-serif; color: var(--cyan-glow); letter-spacing: 1px; margin-bottom: 20px; }
         .config-row { background: rgba(0,0,0,0.3); padding: 12px; border-radius: 15px; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; border: 1px solid rgba(255,255,255,0.05); }
-        select, input[type="color"] { background: #111; border: 1px solid var(--glass-border); color: white; padding: 5px; border-radius: 8px; }
+        /* THEMATIC SLIDER */
+/* THEMATIC SLIDER */
+input[type="range"] { -webkit-appearance: none; width: 100%; background: rgba(0, 242, 255, 0.1); height: 8px; border-radius: 10px; margin: 15px 0; }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; background: #fff; border: 2px solid var(--cyan-glow); border-radius: 50%; cursor: pointer; box-shadow: 0 0 10px var(--cyan-glow); }
+
+/* FIXING WHITE BOXES */
+select, input[type="color"] { 
+    background: rgba(0, 0, 0, 0.5) !important; 
+    border: 1px solid var(--glass-border) !important; 
+    color: var(--cyan-glow) !important; 
+    padding: 8px; 
+    border-radius: 10px; 
+    font-family: 'Roboto Condensed', sans-serif;
+    font-size: 0.9rem;
+    -webkit-appearance: none;
+}
         
         .start-btn { width: 100%; padding: 18px; border-radius: 18px; background: var(--cyan-glow); color: black; border: none; font-weight: bold; font-family: 'Roboto Condensed', sans-serif; text-transform: uppercase; cursor: pointer; margin-top: 15px; box-shadow: 0 5px 0 #0088aa; transition: 0.1s; }
         
         #game-container { display: none; flex-direction: column; align-items: center; width: 100%; flex-grow: 1; justify-content: center; }
         #turn-indicator { padding: 12px 40px; border-radius: 50px; margin-bottom: 15px; font-weight: bold; text-transform: uppercase; font-family: 'Roboto Condensed', sans-serif; box-shadow: 0 0 20px rgba(0,0,0,0.4); border-top: 1px solid rgba(255,255,255,0.3); transition: 0.4s; }
         
-        /* Responsive Grid */
         .grid { display: grid; grid-template-columns: repeat(6, var(--cell-size)); grid-template-rows: repeat(9, var(--cell-size)); gap: 5px; background: rgba(0,0,0,0.5); padding: 12px; border-radius: 20px; border: 2px solid var(--glass-border); transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         .cell { width: var(--cell-size); height: var(--cell-size); background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; position: relative; transition: 0.3s; }
         
@@ -54,7 +69,20 @@
         <div class="config-row"><span>Total Players: <b id="pCount" style="color:var(--cyan-glow)">2</b></span><input type="range" min="2" max="8" value="2" oninput="document.getElementById('pCount').innerText=this.value; drawPlayerConfigs();" id="inputCount" style="width: 100%;"></div>
         <div id="playerConfigs"></div>
         <button onclick="start()" class="start-btn">Engage Fission</button>
-        <button onclick="location.href='index.html'" style="background:none; border:none; color:#555; margin-top:15px; cursor:pointer;">BACK TO MENU</button>
+        <button id="backBtn" onclick="location.href='index.html'" 
+    style="background: rgba(255,255,255,0.03); border: 1px solid rgba(0, 242, 255, 0.2); 
+    color: rgba(0, 242, 255, 0.5); padding: 10px 20px; border-radius: 12px; 
+    font-size: 0.7rem; font-family: 'Roboto Mono', monospace; 
+    letter-spacing: 2px; cursor: pointer; margin-top: 20px; 
+    transition: 0.3s; width: 100%; text-transform: uppercase;">
+    « Return to Nexus
+</button>
+<script>
+    // This part checks if the Index launched this file
+    if(window.name === "injected" || !window.location.href.includes('offline.html')) {
+        document.getElementById('backBtn').style.display = 'none';
+    }
+</script>
     </div>
 
     <div id="game-container">
@@ -64,35 +92,43 @@
     </div>
 
     <script>
-        // FIREBASE BOOT
         const firebaseConfig = { apiKey: "AIzaSyD6U5J3oeXC0gAI1pvz_Q9uKKR3mr9UbSE", authDomain: "chain-reaction-premium.firebaseapp.com", databaseURL: "https://chain-reaction-premium-default-rtdb.asia-southeast1.firebasedatabase.app", projectId: "chain-reaction-premium", storageBucket: "chain-reaction-premium.firebasestorage.app", messagingSenderId: "803586175248", appId: "1:803586175248:web:f47ea5498f91be964b3595" };
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
         let players = [], turnIdx = 0, rows = 9, cols = 6, board = [], isAnimating = false, movesMade = 0, history = [], aiWorker = null, workerBlobURL = null;
         let globalMoveId = 0, musicVol = 0.8, sfxVol = 1.0, isGameOver = false, heartbeatCheck = null; 
-        
-        // Console Remote Settings (Local Fallbacks)
         let remoteAiDepth = 3; 
+
+        // THE ARMORY CACHE
+        let audioLibrary = { board: null, place: null, boom: null, win: null };
 
         // OVERSEER LISTENER
         db.ref('admin_config').on('value', snapshot => {
             const data = snapshot.val();
             if (data) {
-                // Remote Board Zoom
-                if (data.board_zoom) {
-                    document.documentElement.style.setProperty('--cell-size', data.board_zoom + 'px');
-                }
-                // Remote AI Intelligence Depth
-                if (data.global_ai_depth) {
-                    remoteAiDepth = data.global_ai_depth;
+                if (data.board_zoom) document.documentElement.style.setProperty('--cell-size', data.board_zoom + 'px');
+                if (data.global_ai_depth) remoteAiDepth = data.global_ai_depth;
+                // Pre-load Overseer Audio
+                if (data.audio_library) {
+                    // This checks if it should use the APK folder for the background hum
+                    const humSrc = (data.audio_library.board === 'default') ? 'assets/audio/board_hum.mp3' : data.audio_library.board;
+                    if (humSrc) {
+                        audioLibrary.board = new Audio(humSrc);
+                        audioLibrary.board.loop = true;
+                        audioLibrary.board.volume = musicVol;
+                    }
                 }
             }
         });
 
-        const colors = ['#00f2ff', '#ff0055', '#4dff4d', '#ffff4d', '#ff4dff', '#ffa500', '#ffffff', '#4d94ff'];
-        
-        // Worker Code (Logic Kept Exactly as Reference)
+        // AUDIO HANDOVER: Kills Menu music only on Engage
+        function killMenuMusic() {
+            if (window.menuAudio) { window.menuAudio.pause(); }
+            if (window.opener && window.opener.menuAudio) { window.opener.menuAudio.pause(); }
+            if (audioLibrary.board) audioLibrary.board.play().catch(()=>{});
+        }
+
         const workerCode = `self.onmessage = function(e) { const { board, rows, cols, aiLevel, myId, players, moveId } = e.data; const aiStartTime = Date.now(); function getLim(r, c) { return ((r==0||r==rows-1)&&(c==0||c==cols-1))?2:(r==0||r==rows-1||c==0||c==cols-1)?3:4; } function simMove(b, r, c, pId) { let nb = JSON.parse(JSON.stringify(b)), q = [[r,c]]; while(q.length > 0) { if (Date.now() - aiStartTime > 5000) return nb; let [cr, cc] = q.shift(); let cl = nb[cr][cc]; cl.p = pId; cl.count++; let lm = getLim(cr, cc); if(cl.count >= lm) { cl.count = 0; cl.p = -1; [[cr-1,cc],[cr+1,cc],[cr,cc-1],[cr,cc+1]].forEach(([nr,nc]) => { if(nr>=0 && nr<rows && nc>=0 && nc<cols) q.push([nr,nc]); }); } } return nb; } function evalBoard(b, myId) { let s = 0; for(let r=0; r<rows; r++) { for(let c=0; c<cols; c++) { let cl = b[r][c]; if(cl.p === myId) { s += 10; if(getLim(r,c) === 2) s += 5; let ns = [[r-1,c],[r+1,c],[r,c-1],[r,c+1]].filter(([nr,nc])=>nr>=0&&nr<rows&&nc>=0&&nc<cols); for(let [nr, nc] of ns) { let adj = b[nr][nc]; if(adj.p !== -1 && adj.p !== myId) { if(adj.count === getLim(nr,nc)-1) s -= 15; } } } else if(cl.p !== -1) { s -= 10; } } } return s; } function minimax(tb, depth, isMx, alpha, beta, myId, currSim) { if (Date.now() - aiStartTime > 5000) return evalBoard(tb, myId); let cnts = Array(players.length).fill(0); for(let r=0; r<rows; r++) for(let c=0; c<cols; c++) if(tb[r][c].p !== -1) cnts[tb[r][c].p]++; if(depth === 0 || cnts.filter(x => x > 0).length <= 1) return evalBoard(tb, myId); let nextSim = (currSim + 1) % players.length; while(!players[nextSim].active) nextSim = (nextSim + 1) % players.length; let mvs = []; for(let r=0; r<rows; r++) for(let c=0; c<cols; c++) if(tb[r][c].p === -1 || tb[r][c].p === currSim) mvs.push({r,c}); if(isMx) { let best = -Infinity; for(let m of mvs) { best = Math.max(best, minimax(simMove(tb, m.r, m.c, currSim), depth-1, false, alpha, beta, myId, nextSim)); alpha = Math.max(alpha, best); if(beta <= alpha) break; } return best; } else { let best = Infinity; for(let m of mvs) { best = Math.min(best, minimax(simMove(tb, m.r, m.c, currSim), depth-1, true, alpha, beta, myId, nextSim)); beta = Math.min(beta, best); if(beta <= alpha) break; } return best; } } let moves = []; for(let r=0; r<rows; r++) for(let c=0; c<cols; c++) if(board[r][c].p === -1 || board[r][c].p === myId) moves.push({r, c}); let d = aiLevel; let mx = -Infinity, best = moves[0]; for(let m of moves) { if (Date.now() - aiStartTime > 5000) break; let s = minimax(simMove(board, m.r, m.c, myId), d - 1, false, -Infinity, Infinity, myId, (myId + 1) % players.length); if(s > mx) { mx = s; best = m; } } self.postMessage({best, moveId}); };`;
 
         function drawPlayerConfigs() { let n = document.getElementById('pCount').innerText, h = ''; for(let i=0; i<n; i++) h += `<div class="config-row"><span>P${i+1}</span><input type="color" id="c${i}" value="${colors[i]}"><select id="t${i}"><option value="h">Human</option><option value="a" ${i === 1 ? 'selected' : ''}>AI</option></select></div>`; document.getElementById('playerConfigs').innerHTML = h; }
@@ -100,6 +136,7 @@
         function initWorker() { if (aiWorker) aiWorker.terminate(); if (!workerBlobURL) workerBlobURL = URL.createObjectURL(new Blob([workerCode], { type: 'application/javascript' })); aiWorker = new Worker(workerBlobURL); aiWorker.onmessage = (e) => { if(e.data && e.data.moveId === globalMoveId) { setTimeout(() => move(e.data.best.r, e.data.best.c, true), 500); } }; }
         
         function start() { 
+            killMenuMusic(); // THE HANDOVER
             document.getElementById('setup').style.display = 'none'; 
             document.getElementById('game-container').style.display = 'flex'; 
             let n = parseInt(document.getElementById('inputCount').value); 
@@ -133,6 +170,8 @@
                         document.getElementById('winner-text').innerText = `PLAYER ${winnerId + 1} WINS!`;
                         document.getElementById('winner-text').style.color = players[winnerId].color;
                         isAnimating = false;
+                        // PLAY WIN SOUND
+                        db.ref('admin_config/audio_library/win').once('value', s => { if(s.val() && s.val() !== 'default') new Audio(s.val()).play(); });
                     }
                 }
             }, 5000);
@@ -140,9 +179,24 @@
             if(players[turnIdx].isBot) triggerAI(); 
         }
 
+        function playSFX(type) {
+            db.ref(`admin_config/audio_library/${type}`).once('value', s => {
+                const val = s.val();
+                // This tells the app the names of the files inside your APK folder
+                const localMap = { place: 'assets/audio/tap.mp3', boom: 'assets/audio/explode.mp3', win: 'assets/audio/victory.mp3' };
+                const url = (val === 'default' || !val) ? localMap[type] : val;
+
+                if(url) {
+                    const audio = new Audio(url);
+                    audio.volume = sfxVol;
+                    audio.play().catch(()=>{});
+                }
+            });
+        }
+
         function executeUndo() { if (history.length === 0) return; globalMoveId++; isAnimating = false; initWorker(); let last = history.pop(); board = last.board; turnIdx = last.turnIdx; movesMade = last.movesMade; last.activeStatus.forEach((s, i) => players[i].active = s); if (players[turnIdx].isBot && history.length > 0) { executeUndo(); return; } for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) render(r, c); if (history.length === 0) document.getElementById('undoBtn').disabled = true; updateUI(); }
-        async function move(r, c, isAI = false) { if(!isAI && players[turnIdx].isBot) return; if(isAnimating || isGameOver || (board[r][c].p !== -1 && board[r][c].p !== players[turnIdx].id)) return; history.push({ board: JSON.parse(JSON.stringify(board)), turnIdx: turnIdx, movesMade: movesMade, activeStatus: players.map(p => p.active) }); document.getElementById('undoBtn').disabled = false; isAnimating = true; globalMoveId++; await add(r, c, players[turnIdx].id); movesMade++; players.forEach(p => { let c = 0; for(let r=0; r<rows; r++) for(let cl=0; cl<cols; cl++) if(board[r][cl].p === p.id) c++; if(c===0 && movesMade >= players.length) p.active = false; }); let act = players.filter(p => p.active); if(act.length === 1) { isGameOver = true; clearInterval(heartbeatCheck); document.getElementById('win-overlay').style.display = 'flex'; document.getElementById('winner-text').innerText = `PLAYER ${act[0].id + 1} WINS!`; document.getElementById('winner-text').style.color = act[0].color; isAnimating = false; return; } do { turnIdx = (turnIdx + 1) % players.length; } while (!players[turnIdx].active); updateUI(); isAnimating = false; if(players[turnIdx].active && players[turnIdx].isBot) triggerAI(); }
-        async function add(r, c, pId) { if(isGameOver) return; let cl = board[r][c], lm = ((r==0||r==rows-1)&&(c==0||c==cols-1))?2:(r==0||r==rows-1||c==0||c==cols-1)?3:4; cl.p = pId; cl.count++; if(cl.count >= lm) { cl.count = 0; cl.p = -1; render(r, c); let ns = [[r-1,c],[r+1,c],[r,c-1],[r,c+1]].filter(([nr,nc])=>nr>=0&&nr<rows&&nc>=0&&nc<cols); await Promise.all(ns.map(([nr,nc]) => fly(r, c, nr, nc, pId))); } else render(r, c); }
+        async function move(r, c, isAI = false) { if(!isAI && players[turnIdx].isBot) return; if(isAnimating || isGameOver || (board[r][c].p !== -1 && board[r][c].p !== players[turnIdx].id)) return; history.push({ board: JSON.parse(JSON.stringify(board)), turnIdx: turnIdx, movesMade: movesMade, activeStatus: players.map(p => p.active) }); document.getElementById('undoBtn').disabled = false; isAnimating = true; globalMoveId++; playSFX('place'); await add(r, c, players[turnIdx].id); movesMade++; players.forEach(p => { let c = 0; for(let r=0; r<rows; r++) for(let cl=0; cl<cols; cl++) if(board[r][cl].p === p.id) c++; if(c===0 && movesMade >= players.length) p.active = false; }); let act = players.filter(p => p.active); if(act.length === 1) { isGameOver = true; clearInterval(heartbeatCheck); document.getElementById('win-overlay').style.display = 'flex'; document.getElementById('winner-text').innerText = `PLAYER ${act[0].id + 1} WINS!`; document.getElementById('winner-text').style.color = act[0].color; isAnimating = false; return; } do { turnIdx = (turnIdx + 1) % players.length; } while (!players[turnIdx].active); updateUI(); isAnimating = false; if(players[turnIdx].active && players[turnIdx].isBot) triggerAI(); }
+        async function add(r, c, pId) { if(isGameOver) return; let cl = board[r][c], lm = ((r==0||r==rows-1)&&(c==0||c==cols-1))?2:(r==0||r==rows-1||c==0||c==cols-1)?3:4; cl.p = pId; cl.count++; if(cl.count >= lm) { playSFX('boom'); cl.count = 0; cl.p = -1; render(r, c); let ns = [[r-1,c],[r+1,c],[r,c-1],[r,c+1]].filter(([nr,nc])=>nr>=0&&nr<rows&&nc>=0&&nc<cols); await Promise.all(ns.map(([nr,nc]) => fly(r, c, nr, nc, pId))); } else render(r, c); }
         function fly(r, c, nr, nc, pId) { return new Promise(res => { if(isGameOver) return res(); let s = document.getElementById(`c${r}-${c}`).getBoundingClientRect(), e = document.getElementById(`c${nr}-${nc}`).getBoundingClientRect(); let o = document.createElement('div'), p = players[pId]; o.style.position = 'fixed'; o.style.width = '18px'; o.style.height = '18px'; o.style.borderRadius = '50%'; o.style.zIndex = '99'; o.style.background = `radial-gradient(circle at 30% 30%, #fff, ${p.color} 80%)`; o.style.boxShadow = `0 0 10px ${p.color}`; o.style.left = s.left+16+'px'; o.style.top = s.top+16+'px'; document.body.appendChild(o); setTimeout(()=> { o.style.left = e.left+16+'px'; o.style.top = e.top+16+'px'; o.style.transition = 'all 0.3s linear'; }, 10); setTimeout(async ()=> { o.remove(); if(!isGameOver) await add(nr, nc, pId); res(); }, 310); }); }
         
         function render(r, c) { 
@@ -158,16 +212,14 @@
         
         function updateUI() { let ind = document.getElementById('turn-indicator'), p = players[turnIdx]; ind.innerText = p.isBot ? "AI Thinking..." : `Player ${p.id + 1}`; ind.style.background = p.color; ind.style.color = '#000'; document.getElementById('grid').style.borderColor = p.color; }
         
-        // Dynamic AI Depth from Console
         function triggerAI() { 
             if (isAnimating || isGameOver) return; 
             let currentDifficulty = parseInt(document.getElementById('difficulty').value);
-            // If user selected "God Mode" (3), we use the Remote Depth from Console if available
             let depth = (currentDifficulty === 3) ? remoteAiDepth : currentDifficulty;
-            
             aiWorker.postMessage({ board, rows, cols, aiLevel: depth, myId: players[turnIdx].id, players, aiStartTime: Date.now(), moveId: globalMoveId }); 
         }
 
+        const colors = ['#00f2ff', '#ff0055', '#4dff4d', '#ffff4d', '#ff4dff', '#ffa500', '#ffffff', '#4d94ff'];
         window.onload = () => { musicVol = parseFloat(localStorage.getItem('vol_music')) || 0.8; sfxVol = parseFloat(localStorage.getItem('vol_sfx')) || 1.0; drawPlayerConfigs(); };
         window.addEventListener('beforeunload', () => { if (aiWorker) aiWorker.terminate(); if (workerBlobURL) URL.revokeObjectURL(workerBlobURL); });
     </script>
