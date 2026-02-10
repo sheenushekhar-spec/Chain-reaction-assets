@@ -144,10 +144,19 @@ select, input[type="color"] {
             }
         });
 
-        // AUDIO HANDOVER: Kills Menu music only on Engage
+        // UNIFIED AUDIO KILL-SWITCH
         function killMenuMusic() {
-            if (window.menuAudio) { window.menuAudio.pause(); }
+            // 1. Kill global or opener audio if they exist
+            if (window.menuAudio) { window.menuAudio.pause(); window.menuAudio.src = ""; }
             if (window.opener && window.opener.menuAudio) { window.opener.menuAudio.pause(); }
+            
+            // 2. KILL THIS PAGE'S MENU THEME SPECIFICALLY
+            if (audioLibrary.menu) {
+                audioLibrary.menu.pause();
+                audioLibrary.menu.src = ""; 
+            }
+            
+            // 3. Start the board hum for gameplay
             if (audioLibrary.board) audioLibrary.board.play().catch(()=>{});
         }
 
@@ -210,8 +219,8 @@ select, input[type="color"] {
         }
 
         function playSFX(type) {
-            // Force a fresh grab of the SFX volume immediately when a sound is needed
-            const currentSfxVol = parseFloat(localStorage.getItem('vol_sfx')) || 1.0;
+            // Instant volume grab from the Suitcase (LocalStorage)
+            const freshVol = parseFloat(localStorage.getItem('vol_sfx')) || 1.0;
 
             db.ref(`admin_config/audio_library/${type}`).once('value', s => {
                 const val = s.val();
@@ -219,8 +228,9 @@ select, input[type="color"] {
                 const url = (val === 'default' || !val) ? localMap[type] : val;
 
                 if(url) {
-                    const soundEffect = new Audio(url);
-                    soundEffect.volume = currentSfxVol; // Applying the fresh volume
+                    const soundEffect = new Audio();
+                    soundEffect.src = url;
+                    soundEffect.volume = freshVol; // Force volume sync
                     soundEffect.play().catch(()=>{});
                 }
             });
