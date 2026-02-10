@@ -96,8 +96,17 @@ select, input[type="color"] {
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
+        /* --- SUITCASE HANDSHAKE: Applying Overseer Settings --- */
+        const urlParams = new URLSearchParams(window.location.search);
+        let playerNickname = urlParams.get('nick') || "Guest";
+
         let players = [], turnIdx = 0, rows = 9, cols = 6, board = [], isAnimating = false, movesMade = 0, history = [], aiWorker = null, workerBlobURL = null;
-        let globalMoveId = 0, musicVol = 0.8, sfxVol = 1.0, isGameOver = false, heartbeatCheck = null; 
+        let globalMoveId = 0, isGameOver = false, heartbeatCheck = null; 
+
+        // Grabbing volume and timing from the Suitcase
+        let musicVol = parseFloat(urlParams.get('vol')) || 0.8; 
+        let sfxVol = parseFloat(localStorage.getItem('vol_sfx')) || 1.0; 
+        let startTimestamp = parseFloat(urlParams.get('mTime')) || 0; 
         let remoteAiDepth = 3; 
 
         // THE ARMORY CACHE
@@ -117,6 +126,8 @@ select, input[type="color"] {
                         audioLibrary.board = new Audio(humSrc);
                         audioLibrary.board.loop = true;
                         audioLibrary.board.volume = musicVol;
+                        // Picks up the beat exactly where the Index left off
+                        audioLibrary.board.currentTime = startTimestamp;
                     }
                 }
             }
