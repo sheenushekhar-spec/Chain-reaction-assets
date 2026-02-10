@@ -96,7 +96,7 @@ select, input[type="color"] {
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
-       /* --- SUITCASE HANDSHAKE: Applying Overseer Settings --- */
+        /* --- SUITCASE HANDSHAKE: Applying Overseer Settings --- */
         const urlParams = new URLSearchParams(window.location.search);
         let playerNickname = urlParams.get('nick') || "Guest";
 
@@ -109,7 +109,7 @@ select, input[type="color"] {
         let startTimestamp = urlParams.has('mTime') ? parseFloat(urlParams.get('mTime')) : 0; 
         let remoteAiDepth = 3; 
 
-        // THE ARMORY CACHE (Standardized with Menu theme)
+        // Library now includes 'menu' to handle the continuous theme
         let audioLibrary = { menu: null, board: null, place: null, boom: null, win: null };
 
         // OVERSEER LISTENER
@@ -118,12 +118,12 @@ select, input[type="color"] {
             if (data) {
                 if (data.board_zoom) document.documentElement.style.setProperty('--cell-size', data.board_zoom + 'px');
                 if (data.global_ai_depth) remoteAiDepth = data.global_ai_depth;
-               // Pre-load Overseer Audio: Menu Theme and Board Hum
+                // Pre-load Overseer Audio: Menu Theme and Board Hum
                 if (data.audio_library) {
                     const menuSrc = (data.audio_library.menu === 'default') ? 'assets/audio/menu_theme.mp3' : data.audio_library.menu;
                     const humSrc = (data.audio_library.board === 'default') ? 'assets/audio/board_hum.mp3' : data.audio_library.board;
 
-                    // 1. Prepare Menu Theme to continue the Index's beat
+                    // 1. Prepare Menu Theme to continue the Index's vibe
                     audioLibrary.menu = new Audio(menuSrc);
                     audioLibrary.menu.loop = true;
                     audioLibrary.menu.volume = musicVol;
@@ -133,10 +133,10 @@ select, input[type="color"] {
                     audioLibrary.board.loop = true;
                     audioLibrary.board.volume = musicVol;
 
-                    // 3. Resumes the Menu Theme on the very first tap
+                    // 3. The "Wake Up" Logic: Music resumes on first tap
                     const resumeTheme = () => {
                         audioLibrary.menu.currentTime = startTimestamp; 
-                        audioLibrary.menu.play().catch(e => console.log("Audio blocked", e));
+                        audioLibrary.menu.play().catch(e => console.log("Audio blocked:", e));
                         document.removeEventListener('pointerdown', resumeTheme);
                     };
                     document.addEventListener('pointerdown', resumeTheme);
@@ -158,13 +158,8 @@ select, input[type="color"] {
         function initWorker() { if (aiWorker) aiWorker.terminate(); if (!workerBlobURL) workerBlobURL = URL.createObjectURL(new Blob([workerCode], { type: 'application/javascript' })); aiWorker = new Worker(workerBlobURL); aiWorker.onmessage = (e) => { if(e.data && e.data.moveId === globalMoveId) { setTimeout(() => move(e.data.best.r, e.data.best.c, true), 500); } }; }
         
         function start() { 
-            // 1. Pause the Menu Theme
-            if (audioLibrary.menu) audioLibrary.menu.pause();
-            
-            // 2. Kill any lingering Index audio and START the Board Hum
-            killMenuMusic(); 
-            
-            document.getElementById('setup').style.display = 'none';
+            killMenuMusic(); // THE HANDOVER
+            document.getElementById('setup').style.display = 'none'; 
             document.getElementById('game-container').style.display = 'flex'; 
             let n = parseInt(document.getElementById('inputCount').value); 
             players = []; 
@@ -247,8 +242,8 @@ select, input[type="color"] {
         }
 
         const colors = ['#00f2ff', '#ff0055', '#4dff4d', '#ffff4d', '#ff4dff', '#ffa500', '#ffffff', '#4d94ff'];
-       window.onload = () => { 
-            // 1. Prioritize Suitcase Volume over Local Storage
+        window.onload = () => { 
+            // If the Suitcase has volume, use it. Otherwise, use local defaults.
             if (urlParams.has('vol')) {
                 musicVol = parseFloat(urlParams.get('vol'));
             } else {
@@ -256,7 +251,7 @@ select, input[type="color"] {
             }
             sfxVol = parseFloat(localStorage.getItem('vol_sfx')) || 1.0; 
 
-            // 2. DRAW THE SLIDERS IMMEDIATELY
+            // DRAW THE SLIDERS: This prevents the UI from vanishing
             drawPlayerConfigs(); 
         };
         window.addEventListener('beforeunload', () => { if (aiWorker) aiWorker.terminate(); if (workerBlobURL) URL.revokeObjectURL(workerBlobURL); });
