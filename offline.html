@@ -223,7 +223,7 @@ select, input[type="color"] {
             const sfxVal = localStorage.getItem('vol_sfx');
             const targetVol = sfxVal !== null ? parseFloat(sfxVal) : 1.0;
 
-            // 2. THE SILENCER: Create the object BEFORE the database delay
+            // 2. FIRST LOCK: Create the object with volume set (The Silencer)
             const soundInstance = new Audio();
             soundInstance.volume = targetVol; 
 
@@ -233,8 +233,12 @@ select, input[type="color"] {
                 const url = (val === 'default' || !val) ? localMap[type] : val;
 
                 if(url) {
-                    // 3. Hardware is already throttled when the URL attaches
                     soundInstance.src = url;
+                    
+                    // 3. SECOND LOCK: Re-apply volume immediately after src change
+                    // This defeats Chrome's auto-reset to 100%
+                    soundInstance.volume = targetVol; 
+                    
                     soundInstance.play().catch(e => {});
                 }
             });
