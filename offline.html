@@ -158,7 +158,15 @@ select, input[type="color"] {
         function initWorker() { if (aiWorker) aiWorker.terminate(); if (!workerBlobURL) workerBlobURL = URL.createObjectURL(new Blob([workerCode], { type: 'application/javascript' })); aiWorker = new Worker(workerBlobURL); aiWorker.onmessage = (e) => { if(e.data && e.data.moveId === globalMoveId) { setTimeout(() => move(e.data.best.r, e.data.best.c, true), 500); } }; }
         
         function start() { 
-            killMenuMusic(); // THE HANDOVER
+            // 1. Explicitly kill the settings-page menu music
+            if (audioLibrary.menu) {
+                audioLibrary.menu.pause();
+                audioLibrary.menu.src = ""; // Hard stop
+            }
+
+            // 2. Clear lingering Index audio and START the board hum
+            killMenuMusic(); 
+            
             document.getElementById('setup').style.display = 'none'; 
             document.getElementById('game-container').style.display = 'flex'; 
             let n = parseInt(document.getElementById('inputCount').value); 
@@ -202,16 +210,18 @@ select, input[type="color"] {
         }
 
         function playSFX(type) {
+            // Force a fresh grab of the SFX volume immediately when a sound is needed
+            const currentSfxVol = parseFloat(localStorage.getItem('vol_sfx')) || 1.0;
+
             db.ref(`admin_config/audio_library/${type}`).once('value', s => {
                 const val = s.val();
-                // This tells the app the names of the files inside your APK folder
                 const localMap = { place: 'assets/audio/tap.mp3', boom: 'assets/audio/explode.mp3', win: 'assets/audio/victory.mp3' };
                 const url = (val === 'default' || !val) ? localMap[type] : val;
 
                 if(url) {
-                    const audio = new Audio(url);
-                    audio.volume = sfxVol;
-                    audio.play().catch(()=>{});
+                    const soundEffect = new Audio(url);
+                    soundEffect.volume = currentSfxVol; // Applying the fresh volume
+                    soundEffect.play().catch(()=>{});
                 }
             });
         }
@@ -243,15 +253,18 @@ select, input[type="color"] {
 
         const colors = ['#00f2ff', '#ff0055', '#4dff4d', '#ffff4d', '#ff4dff', '#ffa500', '#ffffff', '#4d94ff'];
         window.onload = () => { 
-            // If the Suitcase has volume, use it. Otherwise, use local defaults.
+            // 1. Sync Music Volume from Suitcase
             if (urlParams.has('vol')) {
                 musicVol = parseFloat(urlParams.get('vol'));
             } else {
                 musicVol = parseFloat(localStorage.getItem('vol_music')) || 0.8;
             }
-            sfxVol = parseFloat(localStorage.getItem('vol_sfx')) || 1.0; 
 
-            // DRAW THE SLIDERS: This prevents the UI from vanishing
+            // 2. Sync SFX Volume from LocalStorage
+            const savedSfx = localStorage.getItem('vol_sfx');
+            sfxVol = savedSfx !== null ? parseFloat(savedSfx) : 1.0; 
+
+            // 3. Render UI
             drawPlayerConfigs(); 
         };
         window.addEventListener('beforeunload', () => { if (aiWorker) aiWorker.terminate(); if (workerBlobURL) URL.revokeObjectURL(workerBlobURL); });
