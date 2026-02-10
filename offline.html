@@ -162,8 +162,13 @@ select, input[type="color"] {
         function initWorker() { if (aiWorker) aiWorker.terminate(); if (!workerBlobURL) workerBlobURL = URL.createObjectURL(new Blob([workerCode], { type: 'application/javascript' })); aiWorker = new Worker(workerBlobURL); aiWorker.onmessage = (e) => { if(e.data && e.data.moveId === globalMoveId) { setTimeout(() => move(e.data.best.r, e.data.best.c, true), 500); } }; }
         
         function start() { 
-            killMenuMusic(); // THE HANDOVER
-            document.getElementById('setup').style.display = 'none'; 
+            // 1. Pause the Menu Theme
+            if (audioLibrary.menu) audioLibrary.menu.pause();
+            
+            // 2. Kill any lingering Index audio and START the Board Hum
+            killMenuMusic(); 
+            
+            document.getElementById('setup').style.display = 'none';
             document.getElementById('game-container').style.display = 'flex'; 
             let n = parseInt(document.getElementById('inputCount').value); 
             players = []; 
