@@ -219,8 +219,8 @@ select, input[type="color"] {
         }
 
         function playSFX(type) {
-            // Instant volume grab from the Suitcase (LocalStorage)
-            const freshVol = parseFloat(localStorage.getItem('vol_sfx')) || 1.0;
+            // 1. Force-pull the exact live value from the Index's save-key
+            const liveSfxVol = parseFloat(localStorage.getItem('vol_sfx')) || 1.0;
 
             db.ref(`admin_config/audio_library/${type}`).once('value', s => {
                 const val = s.val();
@@ -228,10 +228,11 @@ select, input[type="color"] {
                 const url = (val === 'default' || !val) ? localMap[type] : val;
 
                 if(url) {
-                    const soundEffect = new Audio();
-                    soundEffect.src = url;
-                    soundEffect.volume = freshVol; // Force volume sync
-                    soundEffect.play().catch(()=>{});
+                    // 2. Instantiate and assign volume before attachment
+                    const soundInstance = new Audio();
+                    soundInstance.src = url;
+                    soundInstance.volume = liveSfxVol; 
+                    soundInstance.play().catch(e => console.log("SFX Audio Blocked:", e));
                 }
             });
         }
