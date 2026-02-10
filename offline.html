@@ -103,11 +103,12 @@ select, input[type="color"] {
         let players = [], turnIdx = 0, rows = 9, cols = 6, board = [], isAnimating = false, movesMade = 0, history = [], aiWorker = null, workerBlobURL = null;
         let globalMoveId = 0, isGameOver = false, heartbeatCheck = null; 
 
-        // Open the Suitcase: Prioritize URL data over defaults
-        let musicVol = urlParams.has('vol') ? parseFloat(urlParams.get('vol')) : 0.8; 
-        let sfxVol = parseFloat(localStorage.getItem('vol_sfx')) || 1.0; 
+        // GRAB DATA FROM URL (The Suitcase), NOT STORAGE
+        let musicVol = urlParams.has('vol') ? parseFloat(urlParams.get('vol')) : 0.8;
+        let sfxVol = urlParams.has('sfx') ? parseFloat(urlParams.get('sfx')) : 1.0; 
+        
         let startTimestamp = urlParams.has('mTime') ? parseFloat(urlParams.get('mTime')) : 0; 
-        let remoteAiDepth = 3; 
+        let remoteAiDepth = 3;
 
         // Library now includes 'menu' to handle the continuous theme
         let audioLibrary = { menu: null, board: null, place: null, boom: null, win: null };
@@ -219,11 +220,10 @@ select, input[type="color"] {
         }
 
         function playSFX(type) {
-            // 1. Instant Synchronous Volume Grab
-            const sfxVal = localStorage.getItem('vol_sfx');
-            const targetVol = sfxVal !== null ? parseFloat(sfxVal) : 1.0;
+            // 1. USE THE GLOBAL VARIABLE (Passed from Index)
+            const targetVol = sfxVol; 
 
-            // 2. FIRST LOCK: Create the object with volume set (The Silencer)
+            // 2. FIRST LOCK: Create the object with volume set
             const soundInstance = new Audio();
             soundInstance.volume = targetVol; 
 
@@ -236,7 +236,6 @@ select, input[type="color"] {
                     soundInstance.src = url;
                     
                     // 3. SECOND LOCK: Re-apply volume immediately after src change
-                    // This defeats Chrome's auto-reset to 100%
                     soundInstance.volume = targetVol; 
                     
                     soundInstance.play().catch(e => {});
@@ -278,9 +277,13 @@ select, input[type="color"] {
                 musicVol = parseFloat(localStorage.getItem('vol_music')) || 0.8;
             }
 
-            // 2. Sync SFX Volume from LocalStorage
-            const savedSfx = localStorage.getItem('vol_sfx');
-            sfxVol = savedSfx !== null ? parseFloat(savedSfx) : 1.0; 
+            // 2. Sync SFX Volume (Protect the Suitcase)
+            if (urlParams.has('sfx')) {
+                sfxVol = parseFloat(urlParams.get('sfx'));
+            } else {
+                const savedSfx = localStorage.getItem('vol_sfx');
+                sfxVol = savedSfx !== null ? parseFloat(savedSfx) : 1.0; 
+            }
 
             // 3. Render UI
             drawPlayerConfigs(); 
