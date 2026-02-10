@@ -219,11 +219,11 @@ select, input[type="color"] {
         }
 
         function playSFX(type) {
-            // 1. FORCE-GRAB the decimal value (0.03) from index.html's suitcase
-            const suitcaseVol = parseFloat(localStorage.getItem('vol_sfx'));
-            const liveSfxVol = isNaN(suitcaseVol) ? 1.0 : suitcaseVol;
+            // 1. Force-grab the exact decimal from the index.html suitcase
+            const sfxVal = localStorage.getItem('vol_sfx');
+            const liveSfxVol = sfxVal !== null ? parseFloat(sfxVal) : 1.0;
 
-            // 2. Create the shell IMMEDIATELY and lock the volume
+            // 2. CREATE SHELL IMMEDIATELY: This silences the hardware before the URL loads
             const soundInstance = new Audio();
             soundInstance.volume = liveSfxVol; 
 
@@ -233,7 +233,7 @@ select, input[type="color"] {
                 const url = (val === 'default' || !val) ? localMap[type] : val;
 
                 if(url) {
-                    // 3. Attach the URL to the already-silenced shell
+                    // 3. Attach the file to the already-silenced shell
                     soundInstance.src = url;
                     soundInstance.play().catch(e => console.log("SFX Blocked:", e));
                 }
