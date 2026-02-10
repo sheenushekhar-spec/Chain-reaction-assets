@@ -109,12 +109,8 @@ select, input[type="color"] {
         let startTimestamp = urlParams.has('mTime') ? parseFloat(urlParams.get('mTime')) : 0; 
         let remoteAiDepth = 3; 
 
-        // Library now includes 'menu' to handle the continuous theme
-        let audioLibrary = { menu: null, board: null, place: null, boom: null, win: null }; 
-        let remoteAiDepth = 3; 
-
-        // THE ARMORY CACHE
-        let audioLibrary = { board: null, place: null, boom: null, win: null };
+        // THE ARMORY CACHE (Standardized with Menu theme)
+        let audioLibrary = { menu: null, board: null, place: null, boom: null, win: null };
 
         // OVERSEER LISTENER
         db.ref('admin_config').on('value', snapshot => {
@@ -252,11 +248,15 @@ select, input[type="color"] {
 
         const colors = ['#00f2ff', '#ff0055', '#4dff4d', '#ffff4d', '#ff4dff', '#ffa500', '#ffffff', '#4d94ff'];
        window.onload = () => { 
-            // Only use local defaults if the Suitcase (URL) is missing
-            if (!urlParams.has('vol')) {
+            // 1. Prioritize Suitcase Volume over Local Storage
+            if (urlParams.has('vol')) {
+                musicVol = parseFloat(urlParams.get('vol'));
+            } else {
                 musicVol = parseFloat(localStorage.getItem('vol_music')) || 0.8;
             }
             sfxVol = parseFloat(localStorage.getItem('vol_sfx')) || 1.0; 
+
+            // 2. DRAW THE SLIDERS IMMEDIATELY
             drawPlayerConfigs(); 
         };
         window.addEventListener('beforeunload', () => { if (aiWorker) aiWorker.terminate(); if (workerBlobURL) URL.revokeObjectURL(workerBlobURL); });
