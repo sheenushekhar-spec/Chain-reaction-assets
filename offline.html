@@ -100,8 +100,14 @@ select, input[type="color"] {
         const urlParams = new URLSearchParams(window.location.search);
         let playerNickname = urlParams.get('nick') || "Guest";
 
+        /* --- SUITCASE HANDSHAKE --- */
+        const urlParams = new URLSearchParams(window.location.search);
+        let playerNickname = urlParams.get('nick') || "Guest";
+        let musicVol = parseFloat(urlParams.get('vol')) || 0.8; 
+        let startTimestamp = parseFloat(urlParams.get('mTime')) || 0;
+
         let players = [], turnIdx = 0, rows = 9, cols = 6, board = [], isAnimating = false, movesMade = 0, history = [], aiWorker = null, workerBlobURL = null;
-        let globalMoveId = 0, isGameOver = false, heartbeatCheck = null; 
+        let globalMoveId = 0, isGameOver = false, heartbeatCheck = null;
 
         // Grabbing volume and timing from the Suitcase
         let musicVol = parseFloat(urlParams.get('vol')) || 0.8; 
@@ -120,27 +126,26 @@ select, input[type="color"] {
                 if (data.global_ai_depth) remoteAiDepth = data.global_ai_depth;
                 // Pre-load Overseer Audio
                 if (data.audio_library) {
-                    // This checks if it should use the APK folder for the background hum
+                    const menuSrc = (data.audio_library.menu === 'default') ? 'assets/audio/menu_theme.mp3' : data.audio_library.menu;
                     const humSrc = (data.audio_library.board === 'default') ? 'assets/audio/board_hum.mp3' : data.audio_library.board;
-                    if (humSrc) {
-                        const boardAudio = new Audio(humSrc);
-                        boardAudio.loop = true;
-                        boardAudio.volume = musicVol;
-                        
-                        // We store it in the library first
-                        audioLibrary.board = boardAudio;
 
-                        // The browser needs a "Gesture" to allow the jump
-                        const resumeHandoff = () => {
-                            // Set the time ONLY when we are about to play
-                            boardAudio.currentTime = startTimestamp; 
-                            boardAudio.play().catch(e => console.log("Handoff blocked:", e));
-                            document.removeEventListener('pointerdown', resumeHandoff);
-                        };
-                        
-                        // Listen for your first tap on the "Engage Fission" screen
-                        document.addEventListener('pointerdown', resumeHandoff);
-                    }
+                    // 1. Prepare Menu Theme to continue the Index's vibe
+                    audioLibrary.menu = new Audio(menuSrc);
+                    audioLibrary.menu.loop = true;
+                    audioLibrary.menu.volume = musicVol;
+
+                    // 2. Prepare Board Hum for later
+                    audioLibrary.board = new Audio(humSrc);
+                    audioLibrary.board.loop = true;
+                    audioLibrary.board.volume = musicVol;
+
+                    // 3. Resumes the Menu Theme on the very first tap
+                    const resumeTheme = () => {
+                        audioLibrary.menu.currentTime = startTimestamp; 
+                        audioLibrary.menu.play().catch(e => console.log("Audio blocked", e));
+                        document.removeEventListener('pointerdown', resumeTheme);
+                    };
+                    document.addEventListener('pointerdown', resumeTheme);
                 }
             }
         });
@@ -159,8 +164,12 @@ select, input[type="color"] {
         function initWorker() { if (aiWorker) aiWorker.terminate(); if (!workerBlobURL) workerBlobURL = URL.createObjectURL(new Blob([workerCode], { type: 'application/javascript' })); aiWorker = new Worker(workerBlobURL); aiWorker.onmessage = (e) => { if(e.data && e.data.moveId === globalMoveId) { setTimeout(() => move(e.data.best.r, e.data.best.c, true), 500); } }; }
         
         function start() { 
-            killMenuMusic(); // THE HANDOVER
-            document.getElementById('setup').style.display = 'none'; 
+            // Swaps the Menu Music for the Board Hum
+            if (audioLibrary.menu) audioLibrary.menu.pause();
+            if (audioLibrary.board) audioLibrary.board.play().catch(()=>{});
+            
+            killMenuMusic(); 
+            document.getElementById('setup').style.display = 'none';
             document.getElementById('game-container').style.display = 'flex'; 
             let n = parseInt(document.getElementById('inputCount').value); 
             players = []; 
