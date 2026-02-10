@@ -219,9 +219,13 @@ select, input[type="color"] {
         }
 
         function playSFX(type) {
-            // 1. Instant, synchronous grab of the suitcase volume
-            const rawVol = localStorage.getItem('vol_sfx');
-            const liveSfxVol = rawVol !== null ? parseFloat(rawVol) : 1.0;
+            // 1. FORCE-GRAB the decimal value (0.03) from index.html's suitcase
+            const suitcaseVol = parseFloat(localStorage.getItem('vol_sfx'));
+            const liveSfxVol = isNaN(suitcaseVol) ? 1.0 : suitcaseVol;
+
+            // 2. Create the shell IMMEDIATELY and lock the volume
+            const soundInstance = new Audio();
+            soundInstance.volume = liveSfxVol; 
 
             db.ref(`admin_config/audio_library/${type}`).once('value', s => {
                 const val = s.val();
@@ -229,14 +233,9 @@ select, input[type="color"] {
                 const url = (val === 'default' || !val) ? localMap[type] : val;
 
                 if(url) {
-                    // 2. Instantiate WITHOUT a source first to lock the gain
-                    const soundEffect = new Audio();
-                    soundEffect.volume = liveSfxVol; 
-                    soundEffect.src = url; 
-                    
-                    // 3. Re-apply right before the trigger to be safe
-                    soundEffect.volume = liveSfxVol;
-                    soundEffect.play().catch(e => console.log("SFX Audio Blocked:", e));
+                    // 3. Attach the URL to the already-silenced shell
+                    soundInstance.src = url;
+                    soundInstance.play().catch(e => console.log("SFX Blocked:", e));
                 }
             });
         }
