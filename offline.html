@@ -219,8 +219,9 @@ select, input[type="color"] {
         }
 
         function playSFX(type) {
-            // 1. Force-pull the exact live value from the Index's save-key
-            const liveSfxVol = parseFloat(localStorage.getItem('vol_sfx')) || 1.0;
+            // 1. Instant, synchronous grab of the suitcase volume
+            const rawVol = localStorage.getItem('vol_sfx');
+            const liveSfxVol = rawVol !== null ? parseFloat(rawVol) : 1.0;
 
             db.ref(`admin_config/audio_library/${type}`).once('value', s => {
                 const val = s.val();
@@ -228,11 +229,14 @@ select, input[type="color"] {
                 const url = (val === 'default' || !val) ? localMap[type] : val;
 
                 if(url) {
-                    // 2. Instantiate and assign volume before attachment
-                    const soundInstance = new Audio();
-                    soundInstance.src = url;
-                    soundInstance.volume = liveSfxVol; 
-                    soundInstance.play().catch(e => console.log("SFX Audio Blocked:", e));
+                    // 2. Instantiate WITHOUT a source first to lock the gain
+                    const soundEffect = new Audio();
+                    soundEffect.volume = liveSfxVol; 
+                    soundEffect.src = url; 
+                    
+                    // 3. Re-apply right before the trigger to be safe
+                    soundEffect.volume = liveSfxVol;
+                    soundEffect.play().catch(e => console.log("SFX Audio Blocked:", e));
                 }
             });
         }
