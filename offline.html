@@ -69,7 +69,7 @@ select, input[type="color"] {
         <div class="config-row"><span>Total Players: <b id="pCount" style="color:var(--cyan-glow)">2</b></span><input type="range" min="2" max="8" value="2" oninput="document.getElementById('pCount').innerText=this.value; drawPlayerConfigs();" id="inputCount" style="width: 100%;"></div>
         <div id="playerConfigs"></div>
         <button onclick="start()" class="start-btn">Engage Fission</button>
-        <button id="backBtn" onclick="location.href='index.html'" 
+        <button id="backBtn" onclick="returnToNexus()" 
     style="background: rgba(255,255,255,0.03); border: 1px solid rgba(0, 242, 255, 0.2); 
     color: rgba(0, 242, 255, 0.5); padding: 10px 20px; border-radius: 12px; 
     font-size: 0.7rem; font-family: 'Roboto Mono', monospace; 
@@ -269,6 +269,16 @@ select, input[type="color"] {
         }
 
         const colors = ['#00f2ff', '#ff0055', '#4dff4d', '#ffff4d', '#ff4dff', '#ffa500', '#ffffff', '#4d94ff'];
+function returnToNexus() {
+    // Captures the exact second of the music so it doesn't restart from the beginning
+    let mTime = 0;
+    if (audioLibrary.menu && !audioLibrary.menu.paused) mTime = audioLibrary.menu.currentTime;
+    else if (audioLibrary.board && !audioLibrary.board.paused) mTime = audioLibrary.board.currentTime;
+
+    // Constructs the URL with your current Volume and Music Time
+    const suitcase = `index.html?vol=${musicVol}&sfx=${sfxVol}&mTime=${mTime}`;
+    location.href = suitcase;
+}
         window.onload = () => { 
             // 1. Sync Music Volume from Suitcase
             if (urlParams.has('vol')) {
