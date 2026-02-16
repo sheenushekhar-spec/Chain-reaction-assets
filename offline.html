@@ -61,6 +61,18 @@ select, input[type="color"] {
     </style>
 </head>
 <body>
+<div id="sim-success" style="display:none; position:fixed; inset:0; background:rgba(0,242,255,0.2); z-index:2000; flex-direction:column; align-items:center; justify-content:center; backdrop-filter:blur(15px);">
+        <h1 style="font-family:'Roboto Condensed'; color:var(--cyan-glow); text-shadow:0 0 20px var(--cyan-glow);">STABILIZATION_COMPLETE</h1>
+        <button onclick="returnToNexus()" class="start-btn" style="width:auto; padding:15px 40px;">RETURN_TO_COMMAND</button>
+    </div>
+
+    <div id="sim-fail" style="display:none; position:fixed; inset:0; background:rgba(255,0,85,0.2); z-index:2000; flex-direction:column; align-items:center; justify-content:center; backdrop-filter:blur(15px);">
+        <h1 style="font-family:'Roboto Condensed'; color:var(--red-glow); text-shadow:0 0 20px var(--red-glow);">CORE_MELTDOWN</h1>
+        <div style="display:flex; gap:15px;">
+            <button onclick="location.reload()" class="start-btn" style="width:auto; padding:15px 40px; background:var(--red-glow); box-shadow:0 5px 0 #880022;">RETRY_SIM</button>
+            <button onclick="returnToNexus()" class="start-btn" style="width:auto; padding:15px 40px; background:#333; box-shadow:0 5px 0 #000;">ABORT</button>
+        </div>
+    </div>
     <div id="win-overlay"><h1 id="winner-text">PLAYER 1 WINS!</h1><button onclick="location.reload()" class="start-btn" style="width:auto; padding:15px 40px;">NEW BATTLE</button></div>
     
     <div id="setup">
@@ -135,7 +147,8 @@ select, input[type="color"] {
                     audioLibrary.board.volume = musicVol;
 
                     // 3. The "Wake Up" Logic: Music resumes on first tap
-                    const resumeTheme = () => {
+                   const resumeTheme = () => {
+                        if (isSimulation) return; // FIX: Don't play menu music in simulation
                         audioLibrary.menu.currentTime = startTimestamp; 
                         audioLibrary.menu.play().catch(e => console.log("Audio blocked:", e));
                         document.removeEventListener('pointerdown', resumeTheme);
@@ -269,6 +282,72 @@ select, input[type="color"] {
         }
 
         const colors = ['#00f2ff', '#ff0055', '#4dff4d', '#ffff4d', '#ff4dff', '#ffa500', '#ffffff', '#4d94ff'];
+/* --- SIMULATION PROTOCOL: Bypassing Settings for Puzzles --- */
+        let isSimulation = false; // Flag to prevent music overlap
+
+        function handleSimulationStartup() {
+            const params = new URLSearchParams(window.location.search);
+            const mode = params.get('mode');
+            
+            if (mode === 'test' || mode === 'puzzle') {
+                isSimulation = true; 
+                const rawData = params.get('data');
+                const solIdx = parseInt(params.get('sol'));
+                const startingTurn = params.get('turn');
+
+                if (!rawData) return;
+
+                // 1. Unpack Board & Convert Flat Array to 2D Grid
+                const flatData = JSON.parse(atob(rawData));
+                board = [];
+                for(let r=0; r<rows; r++) {
+                    board[r] = flatData.slice(r * cols, (r+1) * cols);
+                }
+
+                players = [
+                    { id: 0, color: '#00f2ff', active: true, isBot: false },
+                    { id: 1, color: '#ff0055', active: true, isBot: false }
+                ];
+                turnIdx = (startingTurn === 'cyan') ? 0 : 1;
+                
+                // 2. Clear UI & Prepare Container
+                document.getElementById('setup').style.display = 'none';
+                document.getElementById('game-container').style.display = 'flex';
+                
+                // 3. Generate & Render 6x9 Grid Immediately
+                const g = document.getElementById('grid');
+                g.innerHTML = '';
+                for(let r=0; r<rows; r++) {
+                    for(let c=0; c<cols; c++) {
+                        let d = document.createElement('div');
+                        d.id = `c${r}-${c}`;
+                        d.className = 'cell';
+                        d.onclick = (ev) => { 
+                            ev.preventDefault(); 
+                            handleSimulationMove(r, c, solIdx); 
+                        };
+                        g.appendChild(d);
+                        render(r, c); // Draws orbs into the created cell
+                    }
+                }
+                updateUI();
+                killMenuMusic(); 
+                initWorker(); 
+            }
+        }
+        async function handleSimulationMove(r, c, solIdx) {
+            if (isAnimating || isGameOver) return; 
+            const tappedIdx = (r * cols) + c;
+            
+            // Standard move execution
+            await move(r, c);
+            
+            // Evaluation loop: Wait for board stability
+            setTimeout(() => {
+                const overlay = (tappedIdx === solIdx) ? document.getElementById('sim-success') : document.getElementById('sim-fail');
+                overlay.style.display = 'flex';
+            }, 2000); 
+        }
 function returnToNexus() {
     // Captures the exact second of the music so it doesn't restart from the beginning
     let mTime = 0;
@@ -280,22 +359,15 @@ function returnToNexus() {
     location.href = suitcase;
 }
         window.onload = () => { 
-            // 1. Sync Music Volume from Suitcase
-            if (urlParams.has('vol')) {
-                musicVol = parseFloat(urlParams.get('vol'));
-            } else {
-                musicVol = parseFloat(localStorage.getItem('vol_music')) || 0.8;
-            }
+            // Check for Simulation Suitcase first
+            handleSimulationStartup();
 
-            // 2. Sync SFX Volume (Protect the Suitcase)
-            if (urlParams.has('sfx')) {
-                sfxVol = parseFloat(urlParams.get('sfx'));
-            } else {
-                const savedSfx = localStorage.getItem('vol_sfx');
-                sfxVol = savedSfx !== null ? parseFloat(savedSfx) : 1.0; 
-            }
+            if (urlParams.has('vol')) musicVol = parseFloat(urlParams.get('vol'));
+            else musicVol = parseFloat(localStorage.getItem('vol_music')) || 0.8;
 
-            // 3. Render UI
+            if (urlParams.has('sfx')) sfxVol = parseFloat(urlParams.get('sfx'));
+            else sfxVol = localStorage.getItem('vol_sfx') !== null ? parseFloat(localStorage.getItem('vol_sfx')) : 1.0; 
+
             drawPlayerConfigs(); 
         };
         window.addEventListener('beforeunload', () => { if (aiWorker) aiWorker.terminate(); if (workerBlobURL) URL.revokeObjectURL(workerBlobURL); });
