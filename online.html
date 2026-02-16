@@ -6,121 +6,150 @@
     <title>Chain Reaction Reborn - Online</title>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@700&family=Ubuntu:wght@400;700&family=Roboto+Mono&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@700&family=Ubuntu:wght@400;700&display=swap" rel="stylesheet">
     <style>
         :root { --bg: #05070a; --reactor: #1a0b2e; --cyan-glow: #00f2ff; --glass: rgba(255, 255, 255, 0.08); --glass-border: rgba(255, 255, 255, 0.15); --red-alert: #ff0055; }
         @view-transition { navigation: auto; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
         body { background: radial-gradient(circle at center, var(--reactor) 0%, var(--bg) 100%); color: white; font-family: 'Ubuntu', sans-serif; margin: 0; display: flex; flex-direction: column; align-items: center; height: 100vh; overflow: hidden; }
-        
-        /* Tactical Card Styling */
-        .setup-box { background: var(--glass); backdrop-filter: blur(20px); padding: 25px; border-radius: 32px; border: 1px solid var(--glass-border); text-align: center; width: 90%; max-width: 400px; margin-top: 20px; box-shadow: 0 0 30px rgba(0,0,0,0.5); }
-        .room-card { width: 100%; background: rgba(0,0,0,0.4); border: 1px solid rgba(0, 242, 255, 0.2); border-radius: 16px; padding: 15px; margin-bottom: 12px; cursor: pointer; transition: 0.3s; text-align: left; position: relative; overflow: hidden; }
-        .room-card:hover { border-color: var(--cyan-glow); background: rgba(0, 242, 255, 0.05); }
-        .room-id { font-family: 'Roboto Mono', monospace; color: var(--cyan-glow); font-size: 0.9rem; letter-spacing: 1px; }
-        .stability-track { width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin: 10px 0; overflow: hidden; }
-        .stability-fill { height: 100%; background: var(--cyan-glow); box-shadow: 0 0 10px var(--cyan-glow); transition: 0.5s; }
-        .join-prompt { font-family: 'Roboto Condensed', sans-serif; font-size: 0.7rem; color: #555; letter-spacing: 1px; }
-
-        /* Premium Buttons */
-        .action-btn { width: 100%; padding: 18px; border-radius: 20px; background: var(--cyan-glow); color: black; border: none; font-weight: bold; font-family: 'Roboto Condensed', sans-serif; text-transform: uppercase; cursor: pointer; transition: 0.2s; letter-spacing: 1px; }
+        .setup-box { background: var(--glass); backdrop-filter: blur(20px); padding: 25px; border-radius: 32px; border: 1px solid var(--glass-border); text-align: center; width: 90%; max-width: 400px; margin-top: 20px; }
+        .input-field { padding: 15px; width: 100%; border-radius: 12px; border: 1px solid rgba(0, 242, 255, 0.4); background: rgba(0,0,0,0.3); color: var(--cyan-glow); text-align: center; font-size: 1rem; font-weight: bold; margin-bottom: 12px; }
+        .action-btn { width: 100%; padding: 18px; border-radius: 20px; background: var(--cyan-glow); color: black; border: none; font-weight: bold; font-family: 'Roboto Condensed', sans-serif; text-transform: uppercase; cursor: pointer; transition: 0.2s; }
         .sec-btn { background: rgba(255, 255, 255, 0.03); color: var(--cyan-glow); border: 1px solid rgba(0, 242, 255, 0.4); margin-top: 10px; }
-        .purge-btn { background: rgba(255, 0, 85, 0.05); color: var(--red-alert); border: 1px solid var(--red-alert); margin-top: 20px; font-family: 'Roboto Mono', monospace; font-size: 0.75rem; text-shadow: 0 0 10px var(--red-alert); }
-        
-        /* Grid & Components */
+        .player-row { display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.3); padding: 10px 15px; border-radius: 12px; margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.05); }
+        .kick-btn { background: #ff0055; color: white; border: none; padding: 5px 10px; border-radius: 8px; font-size: 0.65rem; font-weight: bold; cursor: pointer; text-transform: uppercase; }
+        .color-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 15px 0; }
+        .color-opt { aspect-ratio: 1; border-radius: 50%; border: 2px solid transparent; cursor: pointer; }
+        .color-opt.selected { border-color: white; box-shadow: 0 0 15px currentColor; }
+        .color-opt.taken { opacity: 0.2; pointer-events: none; filter: grayscale(0.8); }
+        #game-container { display: none; flex-direction: column; align-items: center; width: 100%; flex-grow: 1; justify-content: center; }
+        #turn-indicator { padding: 12px 40px; border-radius: 50px; font-weight: bold; text-transform: uppercase; font-family: 'Roboto Condensed', sans-serif; transition: 0.4s; color: #000; min-width: 250px; text-align: center; }
+        .timer-container { width: 200px; height: 4px; background: rgba(255,255,255,0.1); border-radius: 10px; margin: 15px 0 25px; overflow: hidden; }
+        #neon-fuse { height: 100%; width: 100%; background: var(--p-color, var(--cyan-glow)); box-shadow: 0 0 15px var(--p-color, var(--cyan-glow)); transform-origin: center; transform: scaleX(0); transition: transform 0.1s linear; }
         .grid { display: grid; grid-template-columns: repeat(6, 50px); grid-template-rows: repeat(9, 50px); gap: 5px; background: rgba(0,0,0,0.5); padding: 12px; border-radius: 20px; border: 3px solid var(--glass-border); transition: 0.4s; }
         .cell { width: 50px; height: 50px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; position: relative; }
-        #purge-overlay { display: none; position: fixed; inset: 0; background: rgba(10, 0, 0, 0.85); z-index: 2000; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(15px); text-align: center; }
-        .player-row { display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); padding: 12px; border-radius: 12px; margin-bottom: 8px; font-family: 'Roboto Mono', monospace; font-size: 0.85rem; }
+        .orb { width: 18px; height: 18px; border-radius: 50%; position: absolute; background: radial-gradient(circle at 30% 30%, #fff, currentColor 80%); box-shadow: 0 0 10px currentColor; pointer-events: none; }
+        .p1 { top: 16px; left: 16px; } .p2-1 { top: 16px; left: 8px; } .p2-2 { top: 16px; left: 24px; } .p3-1 { top: 8px; left: 16px; } .p3-2 { top: 24px; left: 8px; } .p3-3 { top: 24px; left: 24px; }
+        .critical { animation: jitter 0.1s infinite, pulse 0.5s infinite alternate; }
+        @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.15); } }
+        @keyframes jitter { 0% { transform: translate(0,0); } 50% { transform: translate(1px,-1px); } }
+        #toast { position: fixed; top: 30px; background: rgba(0,0,0,0.9); border: 1px solid var(--cyan-glow); padding: 12px 25px; border-radius: 15px; opacity: 0; transition: 0.4s; pointer-events: none; z-index: 3000; font-family: 'Roboto Condensed'; font-weight: bold; color: var(--cyan-glow); }
+        #win-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 1000; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(10px); }
+        
+        #purge-overlay { display: none; position: fixed; inset: 0; background: rgba(10, 0, 0, 0.75); z-index: 2000; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(10px); text-align: center; border: 2px solid var(--red-alert); margin: 30px; border-radius: 40px; }
     </style>
 </head>
 <body>
-    <div id="win-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.95); z-index:1000; flex-direction:column; align-items:center; justify-content:center; backdrop-filter:blur(10px);">
-        <h1 id="winner-text" style="font-family:'Roboto Condensed';">WINS!</h1>
-        <button onclick="location.reload()" class="action-btn" style="width:auto; padding:15px 40px;">NEW BATTLE</button>
-    </div>
+    <div id="toast">CORE STABILIZED: AI PROTOCOL</div>
+    <div id="win-overlay"><h1 id="winner-text">WINS!</h1><button onclick="location.reload()" class="action-btn" style="width:auto; padding:15px 40px;">NEW BATTLE</button></div>
 
     <div id="purge-overlay">
-        <h2 style="color: var(--red-alert); font-family: 'Roboto Condensed'; letter-spacing: 2px;">CRITICAL ERROR</h2>
-        <p id="purge-msg" style="font-family:'Roboto Mono'; font-size:0.8rem; color:#888; margin-bottom:25px;">HOST_NUCLEUS_DISCONNECTED</p>
-        <div id="purge-controls" style="width:100%; max-width:300px;"></div>
+        <h2 style="color: var(--red-alert); font-family: 'Roboto Condensed'; margin:0;">STABILIZATION REQUIRED</h2>
+        <h1 style="font-family: 'Roboto Mono', monospace; font-size: 3.5rem; color: white; text-shadow: 0 0 20px var(--red-alert); margin: 15px 0;">!!!</h1>
+        <div id="purge-controls" style="width:100%; display:flex; flex-direction:column; align-items:center;"></div>
     </div>
 
     <div id="nickname-entry" class="setup-box">
-        <h2 style="color: var(--cyan-glow); font-family:'Roboto Condensed';">IDENTIFY YOUR CORE</h2>
+        <h2 style="color: var(--cyan-glow);">IDENTIFY YOUR CORE</h2>
         <input type="text" id="userNickname" placeholder="ENTER NICKNAME" class="input-field" maxlength="12">
         <button onclick="saveIdentity()" class="action-btn">ESTABLISH LINK</button>
     </div>
 
     <div id="mode-select" class="setup-box" style="display:none;">
-        <h2 style="color: var(--cyan-glow); font-family:'Roboto Condensed';">GLOBAL OUTBREAK</h2>
+        <h2 style="color: var(--cyan-glow);">GLOBAL OUTBREAK</h2>
         <button onclick="showPublicLobbies()" class="action-btn">PUBLIC BATTLES</button>
-        <button onclick="createRoom(false)" class="action-btn sec-btn">HOST PRIVATE</button>
-        <input type="text" id="joinCode" placeholder="PRIVATE CODE" class="input-field" style="margin-top:15px; font-size:0.8rem;" maxlength="4">
-        <button onclick="joinByCode()" class="action-btn sec-btn" style="margin-top:0;">JOIN SESSION</button>
+        <button onclick="showPrivateMenu()" class="action-btn sec-btn">PRIVATE LOBBY</button>
     </div>
 
     <div id="public-browser" class="setup-box" style="display:none;">
-        <h2 style="color:var(--cyan-glow); font-family:'Roboto Condensed';">ACTIVE NUCLEI SCANNER</h2>
-        <div id="room-list" style="max-height: 250px; overflow-y: auto; margin-bottom: 15px; padding-right:5px;"></div>
+        <h2 style="color:var(--cyan-glow);">PUBLIC ROOMS</h2>
+        <div id="room-list" style="max-height: 200px; overflow-y: auto; margin-bottom: 15px;"></div>
         <button onclick="createRoom(true)" class="action-btn">CREATE PUBLIC</button>
         <button onclick="location.reload()" class="action-btn sec-btn">BACK</button>
     </div>
 
+    <div id="private-menu" class="setup-box" style="display:none;">
+        <h2 style="color:var(--cyan-glow);">PRIVATE LOBBY</h2>
+        <input type="text" id="joinCode" placeholder="ENTER 4-DIGIT CODE" class="input-field" maxlength="4">
+        <button onclick="joinByCode()" class="action-btn">JOIN SESSION</button>
+        <button onclick="createRoom(false)" class="action-btn sec-btn">HOST PRIVATE</button>
+        <button onclick="location.reload()" class="action-btn sec-btn">BACK</button>
+    </div>
+
     <div id="lobby" class="setup-box" style="display:none;">
-        <h2 style="font-family:'Roboto Mono'; font-size:1rem; color:var(--cyan-glow);">REACTOR: <span id="displayRoom">----</span></h2>
+        <h2 style="color:var(--cyan-glow); margin-bottom:5px;">ROOM: <span id="displayRoom">----</span></h2>
+        <p style="font-size:0.7rem; color:#666; margin-bottom:15px;">SELECT YOUR ATOM COLOR</p>
         <div id="color-picker" class="color-grid"></div>
         <div id="memberList" style="margin: 20px 0;"></div>
         <div id="hostControls" style="display:none;">
-            <button onclick="startOnlineGame()" class="action-btn">INITIATE OUTBREAK</button>
+            <button onclick="addOnlineAI()" class="action-btn sec-btn">+ ADD BOT</button>
+            <button onclick="startOnlineGame()" class="action-btn" style="margin-top:15px;">START OUTBREAK</button>
         </div>
-        <button onclick="leaveRoom()" class="action-btn purge-btn">[!] PURGE_SESSION_LINK</button>
+        <button onclick="leaveRoom()" style="background:none; border:none; color:#555; margin-top:15px; cursor:pointer; font-size:0.75rem;">[!] ABORT_MISSION</button>
     </div>
 
-    <div id="game-container" style="display:none; flex-direction:column; align-items:center; width:100%; height:100%; justify-content:center;">
-        <div id="turn-indicator" style="padding:12px 40px; border-radius:50px; font-weight:bold; text-transform:uppercase; font-family:'Roboto Condensed'; min-width:250px; text-align:center;"><span id="turn-text">Establishing...</span></div>
-        <div class="timer-container" style="width:200px; height:4px; background:rgba(255,255,255,0.1); border-radius:10px; margin:15px 0 25px; overflow:hidden;"><div id="neon-fuse" style="height:100%; width:100%; background:var(--p-color, var(--cyan-glow)); transform:scaleX(0); transition:0.1s linear;"></div></div>
+    <div id="game-container">
+        <div id="turn-indicator"><span id="turn-text">Establishing...</span></div>
+        <div class="timer-container"><div id="neon-fuse"></div></div>
         <div id="grid" class="grid"></div>
-        <button onclick="leaveRoom()" class="action-btn purge-btn" style="width:200px;">[!] PURGE_LINK</button>
+        <button onclick="leaveRoom()" style="background:none; border:none; color:#555; margin-top:25px; cursor:pointer; font-size:0.8rem; letter-spacing:1px;">[!] ABORT_MISSION</button>
     </div>
 
     <script>
         const config = { apiKey: "AIzaSyD6U5J3oeXC0gAI1pvz_Q9uKKR3mr9UbSE", authDomain: "chain-reaction-premium.firebaseapp.com", databaseURL: "https://chain-reaction-premium-default-rtdb.asia-southeast1.firebasedatabase.app", projectId: "chain-reaction-premium", storageBucket: "chain-reaction-premium.firebasestorage.app", messagingSenderId: "803586175248", appId: "1:803586175248:web:f47ea5498f91be964b3595" };
         firebase.initializeApp(config); const db = firebase.database();
         
-        let nickname = "", players = [], turnIdx = 0, board = [], isAnimating = false, myId = null, roomRef = null, timerInt = null, movesMade = 0;
-        let globalMoveId = 0, isGameOver = false, knownPlayerCount = 0, globalTurnTimer = 20;
+        let nickname = sessionStorage.getItem('playerNickname') || ""; 
+        let players = [], turnIdx = 0, board = [], isAnimating = false, myId = null, roomRef = null, timerInt = null, movesMade = 0;
+        let globalMoveId = 0, aiWorker = null, workerBlobURL = null, heartbeatCheck = null, isGameOver = false;
+        
+        let globalTurnTimer = 20; 
+        let globalAiLevel = 3;
+        let currentAudio = {};
 
-        function updateTelemetry(change) { if(change !== 0) db.ref('global_stats/active_players').transaction(c => (c || 0) + change); }
+        db.ref('admin_config').on('value', snapshot => {
+            const data = snapshot.val();
+            if (data) {
+                if (data.global_turn_timer) globalTurnTimer = data.global_turn_timer;
+                if (data.global_ai_depth) globalAiLevel = data.global_ai_depth;
+                if (data.audio_library) currentAudio = data.audio_library;
+                if (data.emergency_reset === true) {
+                    alert("OVERSEER COMMAND: Reactor Purge Initiated.");
+                    location.href = 'index.html';
+                }
+            }
+        });
 
-        function saveIdentity() { nickname = document.getElementById('userNickname').value.trim() || "User_" + Math.floor(Math.random()*999); sessionStorage.setItem('playerNickname', nickname); showMenu(); }
-        function showMenu() { document.getElementById('nickname-entry').style.display = 'none'; document.getElementById('mode-select').style.display = 'block'; }
+        const colors = ['#00f2ff', '#ff0055', '#4dff4d', '#ffff4d', '#ff4dff', '#ffa500', '#ffffff', '#4d94ff'];
+
+        function updateTelemetry(change) {
+            db.ref('global_stats/active_players').transaction(current => (current || 0) + change);
+        }
+
+        function saveIdentity() { nickname = document.getElementById('userNickname').value.trim() || "User_" + Math.floor(Math.random()*999); document.getElementById('nickname-entry').style.display = 'none'; document.getElementById('mode-select').style.display = 'block'; }
         
         function showPublicLobbies() {
-            document.getElementById('mode-select').style.display = 'none'; document.getElementById('public-browser').style.display = 'block';
-            db.ref('listings').on('value', s => {
+            document.getElementById('mode-select').style.display = 'none';
+            document.getElementById('public-browser').style.display = 'block';
+            db.ref('listings').on('value', async s => {
                 let h = ''; const data = s.val();
                 if(data) {
-                    Object.keys(data).forEach(code => {
-                        const count = data[code].count;
-                        const percent = (count / 8) * 100;
-                        h += `<div class="room-card" onclick="joinByCode('${code}')">
-                                <div class="room-id">REACTOR_${code}</div>
-                                <div class="stability-track"><div class="stability-fill" style="width:${percent}%"></div></div>
-                                <div class="join-prompt">>> INITIATE_CONNECTION_? (${count}/8)</div>
-                              </div>`;
-                    });
+                    for(let code of Object.keys(data)) {
+                        const roomSnap = await db.ref('rooms/' + code).once('value');
+                        if(!roomSnap.exists()) { db.ref('listings/' + code).remove(); }
+                        else { h += `<div class="room-card" onclick="joinByCode('${code}')"><span>${code}</span><span>${data[code].count}/8</span></div>`; }
+                    }
                 }
-                document.getElementById('room-list').innerHTML = h || '<p style="color:#444; font-family:Roboto Mono; font-size:0.7rem;">SCANNING... NO ACTIVE NUCLEI</p>';
+                document.getElementById('room-list').innerHTML = h || '<p style="color:#444">No reactors active.</p>';
             });
         }
 
         async function createRoom(isPublic) {
             const code = Math.random().toString(36).substring(2, 6).toUpperCase();
-            roomRef = db.ref('rooms/' + code); myId = 0;
-            players = [{id:0, color:colors[0], name:nickname, isBot:false, active:true}];
+            roomRef = db.ref('rooms/' + code);
+            myId = 0; players = [{id:0, color:colors[0], name:nickname, isBot:false, active:true}];
             await roomRef.set({ players, state: 'lobby', host: 0, mId: 0, isPublic, timerStart: 0, turnIdx: 0 });
-            db.ref('global_stats/active_rooms').transaction(c => (c || 0) + 1);
+            db.ref('global_stats/active_rooms').transaction(current => (current || 0) + 1);
             updateTelemetry(1);
             if(isPublic) db.ref('listings/' + code).set({ count: 1 });
             enterLobby(code);
@@ -128,21 +157,38 @@
 
         async function joinByCode(manual) {
             const code = (manual || document.getElementById('joinCode').value).toUpperCase();
-            roomRef = db.ref('rooms/' + code); const s = await roomRef.once('value');
-            if(!s.exists() || s.val().state !== 'lobby') return alert("REACTOR UNAVAILABLE");
+            roomRef = db.ref('rooms/' + code);
+            const s = await roomRef.once('value');
+            if(!s.exists() || s.val().state !== 'lobby' || s.val().players.length >= 8) return alert("Room unavailable");
             myId = s.val().players.length; players = s.val().players;
-            players.push({id:myId, color:colors[myId] || colors[0], name:nickname, isBot:false, active:true});
+            const taken = players.map(p => p.color);
+            const nextColor = colors.find(c => !taken.includes(c)) || colors[0];
+            players.push({id:myId, color:nextColor, name:nickname, isBot:false, active:true});
             await roomRef.child('players').set(players);
             updateTelemetry(1);
             if(s.val().isPublic) db.ref('listings/' + code).update({ count: players.length });
             enterLobby(code);
         }
 
+        window.onbeforeunload = () => {
+            if (roomRef) {
+                updateTelemetry(-1);
+                if (myId === 0) db.ref('global_stats/active_rooms').transaction(c => (c || 1) - 1);
+            }
+        };
+
+        function triggerSound(type) {
+            const url = currentAudio[type];
+            if (url && url !== 'default') {
+                const audio = new Audio(url);
+                audio.play().catch(e => console.log("Remote sound failed."));
+            }
+        }
+
         async function leaveRoom() {
             if (!roomRef) return;
             const code = document.getElementById('displayRoom').innerText;
             if (myId === 0) {
-                // MASTER SWEEPER: Clean all telemetry for this room
                 db.ref('listings/' + code).remove();
                 db.ref('global_stats/active_rooms').transaction(c => Math.max(0, (c || 1) - 1));
                 db.ref('global_stats/active_players').transaction(c => Math.max(0, (c || 0) - players.length));
@@ -150,9 +196,12 @@
             } else {
                 updateTelemetry(-1);
                 await roomRef.child('players/' + myId).remove();
-                db.ref('listings/' + code).update({ count: players.length - 1 });
+                const newCount = players.length - 1;
+                db.ref('listings/' + code).update({ count: newCount });
             }
-            location.reload();
+            document.getElementById('lobby').style.display = 'none';
+            document.getElementById('game-container').style.display = 'none';
+            document.getElementById('mode-select').style.display = 'block';
         }
 
         function enterLobby(code) {
@@ -162,48 +211,104 @@
             roomRef.on('value', s => {
                 let d = s.val(); 
                 if(!d) {
-                    // REDIRECT: Host paid the debt, guest just leaves
+                    updateTelemetry(-1);
                     document.getElementById('lobby').style.display = 'none';
                     document.getElementById('game-container').style.display = 'none';
                     document.getElementById('purge-overlay').style.display = 'flex';
-                    document.getElementById('purge-msg').innerText = "HOST_NUCLEUS_DISCONNECTED";
-                    document.getElementById('purge-controls').innerHTML = `<button onclick="location.reload()" class="action-btn">RETURN TO TERMINAL</button>`;
+                    document.getElementById('purge-controls').innerHTML = `
+                        <p style="color:#ff0055; margin-bottom:15px; font-weight:bold;">REACTOR COLLAPSED: ROOM CLOSED BY HOST</p>
+                        <button onclick="document.getElementById('purge-overlay').style.display='none'; document.getElementById('mode-select').style.display='block';" class="action-btn">
+                            RETURN TO LOBBY
+                        </button>`;
                     return;
                 }
                 const stillInRoom = d.players.find(p => p.id === myId);
                 if(!stillInRoom) {
+                    updateTelemetry(-1);
+                    document.getElementById('lobby').style.display = 'none';
+                    document.getElementById('game-container').style.display = 'none';
                     document.getElementById('purge-overlay').style.display = 'flex';
-                    document.getElementById('purge-msg').innerText = "CONNECTION_TERMINATED_BY_HOST";
-                    document.getElementById('purge-controls').innerHTML = `<button onclick="location.reload()" class="action-btn">RETURN TO TERMINAL</button>`;
+                    document.getElementById('purge-controls').innerHTML = `
+                        <p style="color:#ff0055; margin-bottom:15px; font-weight:bold;">CONNECTION TERMINATED BY HOST</p>
+                        <button onclick="document.getElementById('purge-overlay').style.display='none'; showPublicLobbies();" class="action-btn">
+                            RETURN TO BROWSER
+                        </button>`;
                     return;
                 }
                 players = d.players; globalMoveId = d.mId || 0; turnIdx = d.turnIdx || 0;
-                let cp = ''; colors.forEach(c => { const isMine = players[myId].color === c; const isTaken = players.map(p=>p.color).includes(c) && !isMine; cp += `<div class="color-opt ${isMine?'selected':''} ${isTaken?'taken':''}" style="background:${c}; color:${c}" onclick="selectColor('${c}')"></div>`; });
+                updateUI();
+                const takenColors = players.map(p => p.color);
+                let cp = ''; colors.forEach(c => { const isMine = players[myId].color === c; const isTaken = takenColors.includes(c) && !isMine; cp += `<div class="color-opt ${isMine?'selected':''} ${isTaken?'taken':''}" style="background:${c}; color:${c}" onclick="selectColor('${c}')"></div>`; });
                 document.getElementById('color-picker').innerHTML = cp;
-                let h = ''; players.forEach(p => h += `<div class="player-row" style="border-left:4px solid ${p.color}"><span>${p.name.toUpperCase()}</span>${d.host === myId && p.id !== myId ? `<button class="kick-btn" onclick="kickPlayer(${p.id})">KICK</button>` : ''}</div>`);
+                let h = ''; players.forEach(p => {
+                    const isHost = d.host === myId && p.id !== myId;
+                    h += `<div class="player-row" style="border-left: 4px solid ${p.color}"><span>${p.name} ${p.isBot?'[AI]':''}</span>${isHost ? `<button class="kick-btn" onclick="kickPlayer(${p.id})">KICK</button>` : ''}</div>`;
+                });
                 document.getElementById('memberList').innerHTML = h;
                 if(d.host === myId) document.getElementById('hostControls').style.display = 'block';
                 if(d.state === 'play' && !board.length) launchBoard();
                 if(d.state === 'winner') handleVictory(d.winner);
                 if(d.lastMove && d.lastMove.mId === globalMoveId && !isAnimating) executeMove(d.lastMove.r, d.lastMove.c);
+                if(d.timerStart && d.state === 'play') syncTimer(d.timerStart);
             });
         }
 
         function kickPlayer(pId) { 
             const newPlayers = players.filter(p => p.id !== pId).map((p, idx) => ({...p, id: idx})); 
-            roomRef.update({ players: newPlayers });
-            db.ref('listings/' + document.getElementById('displayRoom').innerText).update({ count: newPlayers.length });
+            roomRef.update({ players: newPlayers }); 
+            const code = document.getElementById('displayRoom').innerText;
+            db.ref('listings/' + code).update({ count: newPlayers.length });
+        }
+        function selectColor(c) { players[myId].color = c; roomRef.child('players').set(players); }
+
+        function updateUI() {
+            if(!players || !players[turnIdx]) return;
+            const p = players[turnIdx];
+            document.getElementById('grid').style.borderColor = p.color;
+            if (p.isBot) { document.getElementById('turn-text').innerText = "AI THINKING..."; }
+            else { document.getElementById('turn-text').innerText = (turnIdx === myId) ? "YOUR TURN" : p.name.toUpperCase() + "'S TURN"; }
+            document.getElementById('turn-indicator').style.backgroundColor = p.color;
+            document.body.style.setProperty('--p-color', p.color);
         }
 
-        function selectColor(c) { players[myId].color = c; roomRef.child('players').set(players); }
+        function syncTimer(startTime) {
+            clearInterval(timerInt);
+            timerInt = setInterval(() => {
+                const remain = Math.max(0, globalTurnTimer - (Date.now() - startTime) / 1000);
+                const fuse = document.getElementById('neon-fuse');
+                if(fuse) fuse.style.transform = `scaleX(${remain / globalTurnTimer})`;
+                if(remain <= 0 && myId === 0 && !isAnimating && !players[turnIdx].isBot && board.length > 0) botOutPlayer();
+            }, 100);
+        }
+
+        async function botOutPlayer() {
+            clearInterval(timerInt);
+            await roomRef.child('players/' + turnIdx).update({ isBot: true, name: "BOT_" + players[turnIdx].name });
+            roomRef.child('timerStart').set(0); 
+            document.getElementById('toast').style.opacity = 1;
+            setTimeout(() => document.getElementById('toast').style.opacity = 0, 2500);
+            setTimeout(() => triggerAI(), 1000);
+        }
 
         function launchBoard() {
             document.getElementById('lobby').style.display = 'none'; document.getElementById('game-container').style.display = 'flex';
-            const g = document.getElementById('grid'); g.innerHTML = ''; 
-            for(let r=0; r<9; r++) { board[r] = []; for(let c=0; c<6; c++) { board[r][c] = {p: -1, count: 0}; let d = document.createElement('div'); d.className = 'cell'; d.onclick = () => { if(turnIdx === myId && !isAnimating) sendMove(r,c); }; d.id = `c${r}-${c}`; g.appendChild(d); } }
+            const g = document.getElementById('grid'); g.innerHTML = ''; initWorker();
+            for(let r=0; r<9; r++) { board[r] = []; for(let c=0; c<6; c++) { board[r][c] = {p: -1, count: 0}; let d = document.createElement('div'); d.className = 'cell'; d.onclick = () => { if(turnIdx === myId && !isAnimating && !players[myId].isBot) sendMove(r,c); }; d.id = `c${r}-${c}`; g.appendChild(d); } }
+            
+            heartbeatCheck = setInterval(() => {
+                if (isAnimating && !isGameOver && movesMade >= players.length) {
+                    let activeOnBoard = new Set();
+                    for(let r=0; r<9; r++) for(let c=0; c<6; c++) if(board[r][c].p !== -1) activeOnBoard.add(board[r][c].p);
+                    if (activeOnBoard.size === 1 && myId === 0) {
+                        const winnerId = Array.from(activeOnBoard)[0];
+                        roomRef.update({ state: 'winner', winner: players[winnerId] });
+                    }
+                }
+            }, 5000);
+            updateUI();
         }
 
-        function sendMove(r, c) { if(board[r][c].p !== -1 && board[r][c].p !== players[turnIdx].id) return; roomRef.child('lastMove').set({r, c, p: turnIdx, mId: globalMoveId}); }
+        function sendMove(r, c) { if(board[r][c].p !== -1 && board[r][c].p !== players[turnIdx].id) return; roomRef.child('lastMove').set({r, c, p: turnIdx, mId: globalMoveId}); triggerSound('place'); }
 
         async function executeMove(r, c) {
             isAnimating = true; await add(r, c, players[turnIdx].id);
@@ -218,34 +323,56 @@
                 if(myId === 0) roomRef.update({ state: 'winner', winner: alive[0] });
                 isAnimating = false; return;
             }
-            let next = (turnIdx + 1) % players.length;
-            while(!players[next].active) next = (next+1)%players.length;
-            if(myId === 0) roomRef.update({ mId: globalMoveId + 1, turnIdx: next, timerStart: Date.now() });
-            isAnimating = false;
+            let nextTurn = (turnIdx + 1) % players.length;
+            while (!players[nextTurn].active) nextTurn = (nextTurn + 1) % players.length;
+            if(myId === 0) roomRef.update({ mId: globalMoveId + 1, turnIdx: nextTurn, timerStart: Date.now() });
+            updateUI(); isAnimating = false;
+            if(players[turnIdx].isBot && myId === 0) triggerAI();
         }
 
-        function handleVictory(winner) { isGameOver = true; document.getElementById('win-overlay').style.display = 'flex'; document.getElementById('winner-text').innerText = winner.name.toUpperCase() + " WINS!"; document.getElementById('winner-text').style.color = winner.color; }
+        function handleVictory(winner) { isGameOver = true; clearInterval(heartbeatCheck); triggerSound('win'); document.getElementById('win-overlay').style.display = 'flex'; document.getElementById('winner-text').innerText = winner.name.toUpperCase() + " WINS!"; document.getElementById('winner-text').style.color = winner.color; }
 
         async function add(r, c, pId) {
             let cl = board[r][c], lm = ((r==0||r==8)&&(c==0||c==5))?2:(r==0||r==8||c==0||c==5)?3:4;
             cl.p = pId; cl.count++;
             if(cl.count >= lm) { 
                 cl.count = 0; cl.p = -1; render(r, c); 
+                triggerSound('boom'); 
                 let ns = [[r-1,c],[r+1,c],[r,c-1],[r,c+1]].filter(([nr,nc])=>nr>=0&&nr<9&&nc>=0&&nc<6); await Promise.all(ns.map(([nr,nc]) => fly(r, c, nr, nc, pId))); 
-            } else render(r, c);
+            } 
+            else render(r, c);
         }
 
-        function fly(r, c, nr, nc, pId) { return new Promise(res => { let s = document.getElementById(`c${r}-${c}`).getBoundingClientRect(), e = document.getElementById(`c${nr}-${nc}`).getBoundingClientRect(); let o = document.createElement('div'); o.style.cssText = `width:18px; height:18px; border-radius:50%; position:fixed; background:\${players[pId].color}; left:\${s.left+16}px; top:\${s.top+16}px; box-shadow:0 0 10px \${players[pId].color}; z-index:500; pointer-events:none;`; document.body.appendChild(o); setTimeout(()=> { o.style.left = e.left+16+'px'; o.style.top = e.top+16+'px'; o.style.transition = '0.3s'; }, 10); setTimeout(async ()=> { o.remove(); if(!isGameOver) await add(nr, nc, pId); res(); }, 310); }); }
+        function fly(r, c, nr, nc, pId) { return new Promise(res => { let s = document.getElementById(`c${r}-${c}`).getBoundingClientRect(), e = document.getElementById(`c${nr}-${nc}`).getBoundingClientRect(); let o = document.createElement('div'); o.className = 'orb'; o.style.position = 'fixed'; o.style.color = players[pId].color; o.style.left = s.left+16+'px'; o.style.top = s.top+16+'px'; document.body.appendChild(o); setTimeout(()=> { o.style.left = e.left+16+'px'; o.style.top = e.top+16+'px'; o.style.transition = 'all 0.3s linear'; }, 10); setTimeout(async ()=> { o.remove(); if(!isGameOver) await add(nr, nc, pId); res(); }, 310); }); }
 
         function render(r, c) {
-            let d = document.getElementById(`c${r}-${c}`), cl = board[r][c]; d.innerHTML = '';
-            if(cl.p === -1) return;
-            for(let i=0; i<cl.count; i++) { let o = document.createElement('div'); o.style.cssText = `width:18px; height:18px; border-radius:50%; position:absolute; background:\${players[cl.p].color}; box-shadow:0 0 10px \${players[cl.p].color};`; d.appendChild(o); }
+            let d = document.getElementById(`c${r}-${c}`), cl = board[r][c], lm = ((r==0||r==8)&&(c==0||c==5))?2:(r==0||r==8||c==0||c==5)?3:4;
+            d.innerHTML = ''; d.classList.remove('critical'); if(cl.p === -1) return;
+            if(cl.count === lm - 1) d.classList.add('critical');
+            for(let i=0; i<cl.count; i++) { let o = document.createElement('div'); let pos = cl.count === 1 ? 'p1' : (cl.count === 2 ? (i==0?'p2-1':'p2-2') : (i==0?'p3-1':i==1?'p3-2':'p3-3')); o.className = 'orb ' + pos; o.style.color = players[cl.p].color; d.appendChild(o); }
         }
 
-        const colors = ['#00f2ff', '#ff0055', '#4dff4d', '#ffff4d', '#ff4dff', '#ffa500', '#ffffff', '#4d94ff'];
+        function initWorker() { 
+            if (aiWorker) aiWorker.terminate();
+            if (!workerBlobURL) workerBlobURL = URL.createObjectURL(new Blob([workerCode], { type: 'application/javascript' })); 
+            aiWorker = new Worker(workerBlobURL); 
+            aiWorker.onmessage = (e) => { 
+                if(e.data) { setTimeout(() => { sendMove(e.data.best.r, e.data.best.c); }, 1000); } 
+            }; 
+        }
+
+        function triggerAI() { if(players[turnIdx].isBot && myId === 0) aiWorker.postMessage({ board, rows: 9, cols: 6, aiLevel: globalAiLevel, myId: players[turnIdx].id, players, moveId: globalMoveId }); }
         function startOnlineGame() { roomRef.update({ state: 'play', turnIdx: 0, timerStart: Date.now() }); db.ref('listings/' + document.getElementById('displayRoom').innerText).remove(); }
-        window.onload = () => { const saved = sessionStorage.getItem('playerNickname'); if(saved) { nickname = saved; showMenu(); } };
+        function addOnlineAI() { if(players.length < 8) { let taken = players.map(p => p.color); let nc = colors.find(c => !taken.includes(c)); players.push({id: players.length, color: nc, name: "BOT_" + (players.length+1), isBot: true, active: true}); roomRef.update({ players }); } }
+        
+        // FIX: Check for nickname immediately once the DOM is ready to avoid blank screens
+        window.addEventListener('DOMContentLoaded', () => {
+            if (nickname && nickname !== "") {
+                document.getElementById('nickname-entry').style.display = 'none';
+                document.getElementById('mode-select').style.display = 'block';
+            }
+        });
+        const workerCode = `self.onmessage = function(e) { const { board, rows, cols, myId, players, aiLevel } = e.data; const aiStartTime = Date.now(); function getLim(r, c) { return ((r==0||r==rows-1)&&(c==0||c==cols-1))?2:(r==0||r==rows-1||c==0||c==cols-1)?3:4; } function simMove(b, r, c, pId) { let nb = JSON.parse(JSON.stringify(b)), q = [[r,c]]; while(q.length > 0) { if (Date.now() - aiStartTime > 5000) return nb; let [cr, cc] = q.shift(); let cl = nb[cr][cc]; cl.p = pId; cl.count++; let lm = getLim(cr, cc); if(cl.count >= lm) { cl.count = 0; cl.p = -1; [[cr-1,cc],[cr+1,cc],[cr,cc-1],[cr,cc+1]].forEach(([nr,nc]) => { if(nr>=0 && nr<rows && nc>=0 && nc<cols) q.push([nr,nc]); }); } } return nb; } function evalBoard(b, pId) { let s = 0; for(let r=0; r<rows; r++) { for(let c=0; c<cols; c++) { let cl = b[r][c]; if(cl.p === pId) { s += 10; if(getLim(r,c) === 2) s += 5; let ns = [[r-1,c],[r+1,c],[r,c-1],[r,c+1]].filter(([nr,nc])=>nr>=0&&nr<rows&&nc>=0&&nc<cols); for(let [nr, nc] of ns) { let adj = b[nr][nc]; if(adj.p !== -1 && adj.p !== pId && adj.count === getLim(nr,nc)-1) s -= 15; } } else if(cl.p !== -1) { s -= 10; } } } return s; } let moves = []; for(let r=0; r<rows; r++) for(let c=0; c<cols; c++) if(board[r][c].p === -1 || board[r][c].p === myId) moves.push({r, c}); let mx = -Infinity, best = moves[Math.floor(Math.random()*moves.length)]; for(let m of moves) { let s = evalBoard(simMove(board, m.r, m.c, myId), myId); if(s > mx) { mx = s; best = m; } } self.postMessage({best}); };`;
     </script>
 </body>
 </html>
