@@ -170,10 +170,13 @@ select, input[type="color"] {
                 audioLibrary.menu.src = ""; 
             }
             
-            // 3. Start the board hum for gameplay
-            if (audioLibrary.board) audioLibrary.board.play().catch(()=>{});
+            // 3. Ensure hum is ready before playing
+            db.ref('admin_config/audio_library/board').once('value', s => {
+                const src = (s.val() === 'default' || !s.val()) ? 'assets/audio/board_hum.mp3' : s.val();
+                audioLibrary.board = new Audio(src); audioLibrary.board.loop = true; audioLibrary.board.volume = musicVol;
+                audioLibrary.board.play().catch(()=>{});
+            });
         }
-
         const workerCode = `self.onmessage = function(e) { const { board, rows, cols, aiLevel, myId, players, moveId } = e.data; const aiStartTime = Date.now(); function getLim(r, c) { return ((r==0||r==rows-1)&&(c==0||c==cols-1))?2:(r==0||r==rows-1||c==0||c==cols-1)?3:4; } function simMove(b, r, c, pId) { let nb = JSON.parse(JSON.stringify(b)), q = [[r,c]]; while(q.length > 0) { if (Date.now() - aiStartTime > 5000) return nb; let [cr, cc] = q.shift(); let cl = nb[cr][cc]; cl.p = pId; cl.count++; let lm = getLim(cr, cc); if(cl.count >= lm) { cl.count = 0; cl.p = -1; [[cr-1,cc],[cr+1,cc],[cr,cc-1],[cr,cc+1]].forEach(([nr,nc]) => { if(nr>=0 && nr<rows && nc>=0 && nc<cols) q.push([nr,nc]); }); } } return nb; } function evalBoard(b, myId) { let s = 0; for(let r=0; r<rows; r++) { for(let c=0; c<cols; c++) { let cl = b[r][c]; if(cl.p === myId) { s += 10; if(getLim(r,c) === 2) s += 5; let ns = [[r-1,c],[r+1,c],[r,c-1],[r,c+1]].filter(([nr,nc])=>nr>=0&&nr<rows&&nc>=0&&nc<cols); for(let [nr, nc] of ns) { let adj = b[nr][nc]; if(adj.p !== -1 && adj.p !== myId) { if(adj.count === getLim(nr,nc)-1) s -= 15; } } } else if(cl.p !== -1) { s -= 10; } } } return s; } function minimax(tb, depth, isMx, alpha, beta, myId, currSim) { if (Date.now() - aiStartTime > 5000) return evalBoard(tb, myId); let cnts = Array(players.length).fill(0); for(let r=0; r<rows; r++) for(let c=0; c<cols; c++) if(tb[r][c].p !== -1) cnts[tb[r][c].p]++; if(depth === 0 || cnts.filter(x => x > 0).length <= 1) return evalBoard(tb, myId); let nextSim = (currSim + 1) % players.length; while(!players[nextSim].active) nextSim = (nextSim + 1) % players.length; let mvs = []; for(let r=0; r<rows; r++) for(let c=0; c<cols; c++) if(tb[r][c].p === -1 || tb[r][c].p === currSim) mvs.push({r,c}); if(isMx) { let best = -Infinity; for(let m of mvs) { best = Math.max(best, minimax(simMove(tb, m.r, m.c, currSim), depth-1, false, alpha, beta, myId, nextSim)); alpha = Math.max(alpha, best); if(beta <= alpha) break; } return best; } else { let best = Infinity; for(let m of mvs) { best = Math.min(best, minimax(simMove(tb, m.r, m.c, currSim), depth-1, true, alpha, beta, myId, nextSim)); beta = Math.min(beta, best); if(beta <= alpha) break; } return best; } } let moves = []; for(let r=0; r<rows; r++) for(let c=0; c<cols; c++) if(board[r][c].p === -1 || board[r][c].p === myId) moves.push({r, c}); let d = aiLevel; let mx = -Infinity, best = moves[0]; for(let m of moves) { if (Date.now() - aiStartTime > 5000) break; let s = minimax(simMove(board, m.r, m.c, myId), d - 1, false, -Infinity, Infinity, myId, (myId + 1) % players.length); if(s > mx) { mx = s; best = m; } } self.postMessage({best, moveId}); };`;
 
         function drawPlayerConfigs() { let n = document.getElementById('pCount').innerText, h = ''; for(let i=0; i<n; i++) h += `<div class="config-row"><span>P${i+1}</span><input type="color" id="c${i}" value="${colors[i]}"><select id="t${i}"><option value="h">Human</option><option value="a" ${i === 1 ? 'selected' : ''}>AI</option></select></div>`; document.getElementById('playerConfigs').innerHTML = h; }
@@ -223,8 +226,10 @@ select, input[type="color"] {
                         document.getElementById('winner-text').innerText = `PLAYER ${winnerId + 1} WINS!`;
                         document.getElementById('winner-text').style.color = players[winnerId].color;
                         isAnimating = false;
-                        // PLAY WIN SOUND
-                        db.ref('admin_config/audio_library/win').once('value', s => { if(s.val() && s.val() !== 'default') new Audio(s.val()).play(); });
+                        db.ref('admin_config/audio_library/win').once('value', s => {
+                            const src = (s.val() === 'default' || !s.val()) ? 'assets/audio/victory.mp3' : s.val();
+                            const winAudio = new Audio(src); winAudio.volume = sfxVol; winAudio.play();
+                        });
                     }
                 }
             }, 5000);
